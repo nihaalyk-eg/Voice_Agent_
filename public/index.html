@@ -76,8 +76,20 @@
               <h3 class="erp-card-title"><i class="fa-solid fa-phone"></i> Resident Dialer</h3>
               
               <div class="dialer-container" style="padding: 10px 0;">
+                <!-- Voice Visualizer Orb -->
+                <div class="dialer-orb-container" style="display: flex; justify-content: center; align-items: center; padding: 10px 0 20px 0;">
+                  <div id="voice-orb" class="voice-orb orb-idle" onclick="toggleCall()">
+                    <div class="orb-wave wave-1"></div>
+                    <div class="orb-wave wave-2"></div>
+                    <div class="orb-wave wave-3"></div>
+                    <div class="orb-core">
+                      <i class="fa-solid fa-microphone"></i>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="dialer-display-wrap">
-                  <span id="voice-orb" class="voice-orb orb-idle dialer-status-dot"></span>
+                  <i class="fa-solid fa-phone-volume dialer-input-icon"></i>
                   <input type="text" id="dialer-number" class="dialer-display-input" value="+358 40 123 4567" readonly />
                   <button id="btn-backspace" class="btn-backspace" onclick="backspaceDigit()"><i class="fa-solid fa-delete-left"></i></button>
                 </div>

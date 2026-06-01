@@ -143,6 +143,7 @@ let activeTechFilter = null;
 let activePropertyFilter = null;
 
 function renderProperties() {
+  if (!propertyList) return;
   propertyList.innerHTML = '';
   properties.forEach(prop => {
     const li = document.createElement('li');
@@ -166,6 +167,7 @@ function renderProperties() {
 }
 
 function renderTechnicians() {
+  if (!techList) return;
   techList.innerHTML = '';
   // Get unique technicians from properties
   const uniqueTechs = [];
@@ -236,8 +238,9 @@ function clearAllFilters() {
 }
 
 function renderWorkOrders(highlightId = null) {
+  if (!workOrdersBoard) return;
   workOrdersBoard.innerHTML = '';
-  woCount.textContent = `${workOrders.length} Active`;
+  if (woCount) woCount.textContent = `${workOrders.length} Active`;
 
   if (workOrders.length === 0) {
     workOrdersBoard.innerHTML = `
@@ -837,7 +840,7 @@ async function startCall() {
     setCallStatus('connecting', 'CONNECTING...');
     btnCall.disabled = true;
     btnCallText.textContent = 'Connecting...';
-    voiceOrb.className = 'voice-orb orb-connecting dialer-status-dot';
+    voiceOrb.className = 'voice-orb orb-connecting';
     addLogMessage('Initiating connection to OpenAI Realtime...', 'info');
 
     // 2. Fetch Ephemeral client token from backend passing caller phone number
@@ -882,7 +885,7 @@ async function startCall() {
       btnCallText.textContent = 'End Call';
       btnMute.disabled = false;
       
-      voiceOrb.className = 'voice-orb orb-listening dialer-status-dot';
+      voiceOrb.className = 'voice-orb orb-listening';
 
       // Send session.update if session_config is provided (e.g., when using Azure OpenAI)
       if (sessionData && sessionData.session_config) {
@@ -942,7 +945,7 @@ async function startCall() {
     btnCall.disabled = false;
     btnCallText.textContent = 'Start Call';
     btnCall.className = 'btn btn-call-action btn-call-primary';
-    voiceOrb.className = 'voice-orb orb-idle dialer-status-dot';
+    voiceOrb.className = 'voice-orb orb-idle';
     cleanupCall();
   }
 }
@@ -1017,7 +1020,7 @@ function cleanupCall() {
   btnMute.disabled = true;
   btnMute.className = 'btn btn-call-action btn-call-secondary';
   btnMute.querySelector('span').textContent = 'Mute';
-  voiceOrb.className = 'voice-orb orb-idle dialer-status-dot';
+  voiceOrb.className = 'voice-orb orb-idle';
 }
 
 function setCallStatus(type, label) {
