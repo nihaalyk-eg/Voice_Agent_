@@ -23,6 +23,75 @@ let activeTab = 'work-orders';
 let activeCommsFilter = 'all';
 
 // ==========================================================================
+// Live Cost & Usage HUD State & Logic
+// ==========================================================================
+let costTracker = {
+  inputText: 0,
+  inputAudio: 0,
+  outputText: 0,
+  outputAudio: 0,
+  cost: 0
+};
+
+function resetCostTracker() {
+  costTracker = {
+    inputText: 0,
+    inputAudio: 0,
+    outputText: 0,
+    outputAudio: 0,
+    cost: 0
+  };
+  renderCostTrackerUI();
+}
+
+function updateLiveSessionCost(usage) {
+  const inputText = usage.input_token_details?.text_tokens || 0;
+  const inputAudio = usage.input_token_details?.audio_tokens || 0;
+  const outputText = usage.output_token_details?.text_tokens || 0;
+  const outputAudio = usage.output_token_details?.audio_tokens || 0;
+
+  costTracker.inputText += inputText;
+  costTracker.inputAudio += inputAudio;
+  costTracker.outputText += outputText;
+  costTracker.outputAudio += outputAudio;
+
+  // Real-time OpenAI Realtime API pricing constants:
+  // Audio Input: $100.00 / 1M tokens ($0.0001 per tkn)
+  // Audio Output: $200.00 / 1M tokens ($0.0002 per tkn)
+  // Text Input: $5.00 / 1M tokens ($0.000005 per tkn)
+  // Text Output: $15.00 / 1M tokens ($0.000015 per tkn)
+  costTracker.cost = (costTracker.inputText * 0.000005) + 
+                     (costTracker.inputAudio * 0.0001) + 
+                     (costTracker.outputText * 0.000015) + 
+                     (costTracker.outputAudio * 0.0002);
+
+  renderCostTrackerUI();
+}
+
+function renderCostTrackerUI() {
+  const costDiv = document.getElementById('live-session-cost');
+  const textSpan = document.getElementById('cost-text-tokens');
+  const audioSpan = document.getElementById('cost-audio-tokens');
+  const barText = document.getElementById('bar-cost-text-tokens');
+  const barAudio = document.getElementById('bar-cost-audio-tokens');
+
+  if (costDiv) costDiv.textContent = `$${costTracker.cost.toFixed(5)}`;
+  
+  const totalText = costTracker.inputText + costTracker.outputText;
+  const totalAudio = costTracker.inputAudio + costTracker.outputAudio;
+
+  if (textSpan) textSpan.textContent = `${totalText} tkn`;
+  if (audioSpan) audioSpan.textContent = `${totalAudio} tkn`;
+
+  // Visual scaling (Targeting 10k text / 80k audio max visual scale)
+  const textPercent = Math.min(100, (totalText / 10000) * 100);
+  const audioPercent = Math.min(100, (totalAudio / 80000) * 100);
+
+  if (barText) barText.style.width = `${textPercent}%`;
+  if (barAudio) barAudio.style.width = `${audioPercent}%`;
+}
+
+// ==========================================================================
 // Dynamic HUD Context Builder State & Logic
 // ==========================================================================
 let liveContext = {
@@ -58,6 +127,7 @@ function resetLiveContext(active = false) {
 
 function resetLiveContextManual() {
   resetLiveContext(false);
+  resetCostTracker();
 
   // Reset transcript feed to placeholder
   const feed = document.getElementById('transcript-feed');
@@ -265,6 +335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadEmailTemplates();
   setupResizers();
   resetLiveContext();
+  resetCostTracker();
 });
 
 // Fetch properties and technicians list from backend
@@ -1048,7 +1119,8 @@ async function startCall() {
     // Reset transcript accumulator
     callTranscriptAccumulator = [];
     callStartTime = Date.now();
-    resetLiveContext();
+    resetLiveContext(true);
+    resetCostTracker();
 
     // 1. Reset UI to connecting state
     setCallStatus('connecting', 'CONNECTING...');
@@ -1283,8 +1355,12 @@ function handleRealtimeEvent(event) {
     }
   }
 
-  // 3. Handle Tool Calls
+  // 3. Handle Tool Calls & Cost Calculation
   if (event.type === 'response.done') {
+    const usage = event.response?.usage;
+    if (usage) {
+      updateLiveSessionCost(usage);
+    }
     const outputItems = event.response?.output || [];
     for (const item of outputItems) {
       if (item.type === 'function_call') {
@@ -1501,7 +1577,14 @@ async function executeTool(name, call_id, args) {
             summary: args.summary,
             transcript: callTranscriptAccumulator,
             call_category: args.call_category || 'fault_report',
-            duration_seconds: callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0
+            duration_seconds: callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0,
+            extracted_data: {
+              input_text_tokens: costTracker.inputText,
+              input_audio_tokens: costTracker.inputAudio,
+              output_text_tokens: costTracker.outputText,
+              output_audio_tokens: costTracker.outputAudio,
+              session_cost: costTracker.cost
+            }
           })
         });
         // Reload communications

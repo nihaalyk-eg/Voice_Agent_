@@ -35,6 +35,7 @@
         <a href="/email.html" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
         <a href="/communications.html" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
         <a href="/customers.html" class="sidebar-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+        <a href="/observability.html" class="sidebar-link"><i class="fa-solid fa-chart-line"></i><span>Observability</span></a>
       </nav>
       <div class="sidebar-footer">
         <div class="sidebar-user">
@@ -70,14 +71,14 @@
 
         <!-- Main Calling Console Layout -->
         <div class="voice-agent-layout">
-          <!-- Left: Phone Dialer Card -->
-          <div class="dialer-card-panel">
-            <div class="erp-card dialer-card">
-              <h3 class="erp-card-title"><i class="fa-solid fa-phone"></i> Resident Dialer</h3>
+          <!-- Left: Phone Dialer Card & Live Cost HUD -->
+          <div class="dialer-card-panel" style="display: flex; flex-direction: column; gap: 24px; height: 100%;">
+            <div class="erp-card dialer-card" style="flex: 1.6; display: flex; flex-direction: column; min-height: 0;">
+              <h3 class="erp-card-title" style="margin-bottom: 8px;"><i class="fa-solid fa-phone"></i> Resident Dialer</h3>
               
-              <div class="dialer-container" style="padding: 10px 0;">
+              <div class="dialer-container" style="padding: 5px 0; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
                 <!-- Voice Visualizer Orb -->
-                <div class="dialer-orb-container" style="display: flex; justify-content: center; align-items: center; padding: 10px 0 20px 0;">
+                <div class="dialer-orb-container" style="display: flex; justify-content: center; align-items: center; padding: 5px 0;">
                   <div id="voice-orb" class="voice-orb orb-idle" onclick="toggleCall()">
                     <div class="orb-wave wave-1"></div>
                     <div class="orb-wave wave-2"></div>
@@ -95,7 +96,7 @@
                 </div>
 
                 <!-- Visualizer Bars embedded in Dialer -->
-                <div class="dialer-visualizer">
+                <div class="dialer-visualizer" style="margin: 4px 0;">
                   <div class="vis-bar">
                     <span>MIC IN</span>
                     <div class="bar-bg"><div id="bar-in-fill" class="bar-fill"></div></div>
@@ -107,52 +108,52 @@
                 </div>
 
                 <!-- Keypad Grid -->
-                <div class="keypad-grid">
-                  <button class="keypad-btn" onclick="pressDigit('1')">
+                <div class="keypad-grid" style="gap: 10px;">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('1')">
                     <span class="btn-num">1</span>
                     <span class="btn-letters">&nbsp;</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('2')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('2')">
                     <span class="btn-num">2</span>
                     <span class="btn-letters">ABC</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('3')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('3')">
                     <span class="btn-num">3</span>
                     <span class="btn-letters">DEF</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('4')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('4')">
                     <span class="btn-num">4</span>
                     <span class="btn-letters">GHI</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('5')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('5')">
                     <span class="btn-num">5</span>
                     <span class="btn-letters">JKL</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('6')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('6')">
                     <span class="btn-num">6</span>
                     <span class="btn-letters">MNO</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('7')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('7')">
                     <span class="btn-num">7</span>
                     <span class="btn-letters">PQRS</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('8')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('8')">
                     <span class="btn-num">8</span>
                     <span class="btn-letters">TUV</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('9')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('9')">
                     <span class="btn-num">9</span>
                     <span class="btn-letters">WXYZ</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('*')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('*')">
                     <span class="btn-num">*</span>
                     <span class="btn-letters">&nbsp;</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('0')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('0')">
                     <span class="btn-num">0</span>
                     <span class="btn-letters">+</span>
                   </button>
-                  <button class="keypad-btn" onclick="pressDigit('#')">
+                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('#')">
                     <span class="btn-num">#</span>
                     <span class="btn-letters">&nbsp;</span>
                   </button>
@@ -170,10 +171,49 @@
                   </button>
                 </div>
                 
-                <div class="dialer-meta">
+                <div class="dialer-meta" style="margin-top: 4px;">
                   <div class="meta-item">
                     <span class="label">Model:</span>
                     <span class="value">gpt-realtime-2</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- New Live Cost Tracking HUD Card -->
+            <div class="erp-card cost-tracker-card" style="flex: 0.9; display: flex; flex-direction: column; min-height: 0; padding: 16px 20px;">
+              <h3 class="erp-card-title" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+                <span><i class="fa-solid fa-microchip"></i> Live Usage & Cost Tracking</span>
+                <span class="badge-source source-voice" style="font-size: 9px; padding: 2px 6px; border-radius: 9px; background: rgba(6, 182, 212, 0.1); color: var(--cyan-glow); border: 1px solid rgba(6, 182, 212, 0.2);">REAL-TIME</span>
+              </h3>
+              
+              <div class="cost-summary-layout" style="display: flex; gap: 20px; align-items: center; justify-content: space-between; flex: 1; padding: 2px 0;">
+                <div class="cost-counter-wrap" style="flex: 1;">
+                  <span style="font-size: 9.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Accrued Call Cost</span>
+                  <div id="live-session-cost" class="cost-currency" style="font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 800; color: var(--cyan-glow); text-shadow: 0 0 10px rgba(6, 182, 212, 0.4); margin-top: 4px; transition: all 0.3s ease;">
+                    $0.00000
+                  </div>
+                </div>
+                
+                <div class="cost-meters-grid" style="flex: 1.2; display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                  <div class="cost-metric-bar">
+                    <div style="display: flex; justify-content: space-between; color: var(--text-secondary); font-weight: 700; margin-bottom: 3px;">
+                      <span>Total Text In/Out</span>
+                      <span id="cost-text-tokens" style="font-family: 'JetBrains Mono', monospace;">0 tkn</span>
+                    </div>
+                    <div class="bar-bg" style="height: 6px; border-radius: 3px; background: rgba(255,255,255,0.03); overflow: hidden;">
+                      <div id="bar-cost-text-tokens" class="bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--violet-muted), var(--violet-glow)); height: 100%; transition: width 0.4s ease;"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="cost-metric-bar">
+                    <div style="display: flex; justify-content: space-between; color: var(--text-secondary); font-weight: 700; margin-bottom: 3px;">
+                      <span>Total Audio In/Out</span>
+                      <span id="cost-audio-tokens" style="font-family: 'JetBrains Mono', monospace;">0 tkn</span>
+                    </div>
+                    <div class="bar-bg" style="height: 6px; border-radius: 3px; background: rgba(255,255,255,0.03); overflow: hidden;">
+                      <div id="bar-cost-audio-tokens" class="bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--cyan-muted), var(--cyan-glow)); height: 100%; transition: width 0.4s ease;"></div>
+                    </div>
                   </div>
                 </div>
               </div>
