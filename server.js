@@ -141,7 +141,7 @@ Ensure your response is valid JSON matching this schema.`;
       let requestBody = {};
 
       if (isAzure) {
-        const deployment = process.env.CHAT_DEPLOYMENT_NAME || 'gpt-4o-mini';
+        const deployment = process.env.CHAT_DEPLOYMENT_NAME || 'gpt-5.4-mini';
         let cleanedEndpoint = azureEndpoint.replace(/\/$/, '');
         if (cleanedEndpoint.includes('services.ai.azure.com')) {
           cleanedEndpoint = cleanedEndpoint.replace('services.ai.azure.com', 'openai.azure.com');
