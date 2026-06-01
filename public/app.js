@@ -11,6 +11,7 @@ let currentAgentBubbleText = null;
 // Transcript accumulator for call persistence
 let callTranscriptAccumulator = [];
 let callStartTime = null;
+let callPersisted = false;
 
 // Mock databases loaded from backend
 let properties = [];
@@ -1119,6 +1120,7 @@ async function startCall() {
     // Reset transcript accumulator
     callTranscriptAccumulator = [];
     callStartTime = Date.now();
+    callPersisted = false;
     resetLiveContext(true);
     resetCostTracker();
 
@@ -1239,8 +1241,8 @@ async function startCall() {
 function hangUp() {
   addLogMessage('Call ended by user.', 'info');
   
-  // Persist call transcript if we have accumulated messages
-  if (callTranscriptAccumulator.length > 0) {
+  // Persist call transcript if not already saved during the call session
+  if (!callPersisted) {
     persistCallTranscript();
   }
   
@@ -1249,6 +1251,7 @@ function hangUp() {
 
 async function persistCallTranscript() {
   const durationSeconds = callStartTime ? Math.floor((Date.now() - callStartTime) / 1000) : 0;
+  const dialedNumber = document.getElementById('dialer-number')?.value || '+358 40 123 4567';
   
   try {
     await authFetch('/api/communications', {
@@ -1256,14 +1259,25 @@ async function persistCallTranscript() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'call_transcript',
-        caller_phone: '+358 40 123 4567',
-        summary: `Voice call with ${callTranscriptAccumulator.length} messages. Duration: ${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`,
+        caller_phone: dialedNumber,
+        summary: `Voice call session. Duration: ${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`,
         transcript: callTranscriptAccumulator,
         call_category: 'fault_report',
-        duration_seconds: durationSeconds
+        duration_seconds: durationSeconds,
+        extracted_data: {
+          input_text_tokens: costTracker.inputText,
+          input_audio_tokens: costTracker.inputAudio,
+          output_text_tokens: costTracker.outputText,
+          output_audio_tokens: costTracker.outputAudio,
+          session_cost: costTracker.cost
+        }
       })
     });
+    callPersisted = true;
     addLogMessage('[Comms] Call transcript saved to history.', 'success');
+    if (typeof loadCommunications === 'function') {
+      loadCommunications();
+    }
   } catch (err) {
     console.error('Error persisting transcript:', err);
   }
@@ -1566,6 +1580,7 @@ async function executeTool(name, call_id, args) {
 
     else if (name === 'save_call_transcript') {
       // Update the last transcript in the accumulator with the AI-generated summary
+      const dialedNumber = document.getElementById('dialer-number')?.value || '+358 40 123 4567';
       try {
         await authFetch('/api/communications', {
           method: 'POST',
@@ -1573,7 +1588,7 @@ async function executeTool(name, call_id, args) {
           body: JSON.stringify({
             type: 'call_transcript',
             linked_work_order: args.linked_work_order || null,
-            caller_phone: '+358 40 123 4567',
+            caller_phone: dialedNumber,
             summary: args.summary,
             transcript: callTranscriptAccumulator,
             call_category: args.call_category || 'fault_report',
@@ -1587,6 +1602,7 @@ async function executeTool(name, call_id, args) {
             }
           })
         });
+        callPersisted = true;
         // Reload communications
         loadCommunications();
       } catch (e) {

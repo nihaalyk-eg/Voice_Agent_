@@ -6,7 +6,6 @@ let updateInterval = null;
 document.addEventListener('DOMContentLoaded', async () => {
   await initKeycloak();
   await loadStats();
-  startLogMonitor();
   
   // Refresh stats every 5 seconds
   updateInterval = setInterval(loadStats, 5000);
@@ -109,90 +108,3 @@ function hydrateThroughput(data) {
   if (barEmailText) barEmailText.style.width = `${emailTextPct}%`;
 }
 
-// Live monitor log pool
-const logPool = [
-  { prefix: '[VALKEY]', msg: 'Cache HIT for properties list (TTL verified)', type: 'valkey' },
-  { prefix: '[VALKEY]', msg: 'Cache HIT for work orders list', type: 'valkey' },
-  { prefix: '[VALKEY]', msg: 'Active key check: "cache:properties:all" exists', type: 'valkey' },
-  { prefix: '[POSTGRES]', msg: 'Executed connection pool status check: 0 active, 5 idle', type: 'postgres' },
-  { prefix: '[POSTGRES]', msg: 'SELECT * FROM email_templates ORDER BY id ASC', type: 'postgres' },
-  { prefix: '[API]', msg: 'GET /api/properties invoked by user agent', type: 'api' },
-  { prefix: '[API]', msg: 'GET /api/work-orders response payload generated', type: 'api' },
-  { prefix: '[VALKEY]', msg: 'Cache hit rate optimization at 92.4%', type: 'valkey' },
-  { prefix: '[VOICE]', msg: 'Session proxy ready. Stream listener active on port 3000', type: 'voice' },
-  { prefix: '[VOICE]', msg: 'Valkey session token verified', type: 'voice' },
-  { prefix: '[VALKEY]', msg: 'Cache hit for technicians registry', type: 'valkey' }
-];
-
-function startLogMonitor() {
-  const terminal = document.getElementById('observability-terminal');
-  if (!terminal) return;
-
-  // Pre-populate with some logs
-  for (let i = 0; i < 6; i++) {
-    const log = logPool[Math.floor(Math.random() * logPool.length)];
-    writeLog(log.prefix, log.msg, log.type, true);
-  }
-
-  // Periodic simulation
-  setInterval(() => {
-    // 70% chance of standard mock log, 30% chance of reading from actual data
-    if (Math.random() > 0.3) {
-      const log = logPool[Math.floor(Math.random() * logPool.length)];
-      writeLog(log.prefix, log.msg, log.type);
-    } else {
-      triggerRandomTransaction();
-    }
-  }, 3000);
-}
-
-function writeLog(prefix, msg, type = 'info', prepend = false) {
-  const terminal = document.getElementById('observability-terminal');
-  if (!terminal) return;
-
-  const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-  
-  let color = 'var(--cyan-glow)';
-  if (type === 'valkey') color = 'var(--green-glow)';
-  if (type === 'postgres') color = 'var(--violet-glow)';
-  if (type === 'voice') color = '#06b6d4'; // cyan
-  if (type === 'email') color = '#10b981'; // green
-  if (type === 'error') color = '#ef4444'; // red
-
-  const entry = document.createElement('div');
-  entry.style.marginBottom = '6px';
-  entry.style.borderBottom = '1px solid rgba(255,255,255,0.02)';
-  entry.style.paddingBottom = '4px';
-  entry.innerHTML = `<span style="color: var(--text-muted); font-size: 10px;">[${timestamp}]</span> <strong style="color: ${color};">${prefix}</strong> ${msg}`;
-  
-  if (prepend) {
-    terminal.prepend(entry);
-  } else {
-    terminal.appendChild(entry);
-    terminal.scrollTop = terminal.scrollHeight;
-  }
-
-  // Keep max 80 lines
-  while (terminal.childElementCount > 80) {
-    terminal.removeChild(terminal.firstElementChild);
-  }
-}
-
-async function triggerRandomTransaction() {
-  try {
-    const res = await authFetch('/api/communications');
-    const comms = await res.json();
-    if (comms && comms.length > 0) {
-      const item = comms[Math.floor(Math.random() * comms.length)];
-      if (item.type === 'call_transcript') {
-        writeLog('[VOICE]', `Processed call ${item.id} (${item.duration_seconds}s) with cost $${parseFloat(item.extracted_data?.session_cost || 0).toFixed(5)}. Summary: "${item.summary || 'None'}"`, 'voice');
-      } else if (item.type === 'email_intake') {
-        writeLog('[EMAIL]', `Ingested email ${item.id} from "${item.sender_email}". Extracted data saved. Work order ID: "${item.linked_work_order || 'N/A'}"`, 'email');
-      } else if (item.type === 'escalation') {
-        writeLog('[ERROR]', `CRITICAL Escalation event triggered! ${item.reason} at address ${item.property_address || 'Unknown'}`, 'error');
-      }
-    }
-  } catch (err) {
-    // Fail silently
-  }
-}
