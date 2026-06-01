@@ -2843,3 +2843,233 @@ body {
 #btn-reset-context:active {
   transform: translateY(0);
 }
+
+/* ==========================================================================
+   Responsive Upgrades (Mobile & Tablet Layouts)
+   ========================================================================== */
+@media screen and (max-width: 1024px) {
+  .app-layout {
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Sidebar transforms into a premium Top Bar Navigation */
+  .sidebar-nav {
+    width: 100%;
+    height: 60px;
+    flex: 0 0 60px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+    backdrop-filter: blur(20px);
+  }
+
+  .sidebar-brand {
+    padding: 0;
+    border-bottom: none;
+    gap: 8px;
+  }
+  
+  .sidebar-brand .logo-mark {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+  
+  .sidebar-brand-text {
+    font-size: 13px;
+  }
+
+  .sidebar-links {
+    flex-direction: row;
+    gap: 4px;
+    padding: 0;
+    margin: 0 12px;
+    overflow-x: auto;
+    white-space: nowrap;
+    align-items: center;
+    height: 100%;
+    scrollbar-width: none; /* Hide standard scrollbar for clean aesthetics */
+  }
+  
+  .sidebar-links::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+  }
+
+  .sidebar-link {
+    padding: 6px 12px;
+    font-size: 11.5px;
+    border-radius: 8px;
+  }
+  
+  .sidebar-link i {
+    font-size: 13px;
+    margin-right: 4px;
+  }
+
+  .sidebar-footer {
+    padding: 0;
+    border-top: none;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .sidebar-user {
+    gap: 6px;
+  }
+  
+  .sidebar-user-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+  }
+  
+  .sidebar-user-info {
+    display: none; /* Hide username details to save space */
+  }
+
+  .btn-sidebar-logout {
+    padding: 6px 10px;
+    font-size: 11px;
+    margin-top: 0;
+  }
+  
+  .btn-sidebar-logout span {
+    display: none; /* Only show icon on logout */
+  }
+
+  /* Page Content takes remaining viewport height */
+  .page-main {
+    height: calc(100vh - 60px);
+    overflow: hidden;
+  }
+
+  /* 1. Voice Agent Tab responsive stacks */
+  .voice-agent-layout {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+    padding: 16px 20px;
+    gap: 20px;
+    height: 100%;
+  }
+  
+  .dialer-card-panel {
+    height: auto;
+    min-height: 0;
+  }
+  
+  .dialer-card {
+    height: auto;
+  }
+
+  .transcript-panel {
+    height: auto;
+    gap: 20px;
+  }
+
+  /* 2. ERP Work Orders board responsive stack */
+  .erp-grid {
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+    padding: 16px 20px;
+  }
+
+  .erp-sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .erp-main-board {
+    width: 100%;
+    flex: 0 0 auto;
+    min-width: 0;
+    margin-top: 16px;
+  }
+
+  .splitter {
+    display: none !important; /* Hide resizer splitters on smaller screens */
+  }
+
+  /* 3. Email Agent responsive stacks */
+  .email-agent-layout {
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+    padding: 16px 20px;
+  }
+
+  .email-form-panel,
+  .email-results-panel {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  /* 4. Observability dashboard responsive stacks */
+  /* Split KPI summary cards grid */
+  .observability-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Split detailed statistics grid */
+  .observability-details-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  /* Smaller paddings for mobile screens */
+  .page-header {
+    padding: 16px 20px;
+  }
+  
+  .page-header h1 {
+    font-size: 16px;
+  }
+  
+  .page-header p.subtitle {
+    font-size: 11px;
+  }
+
+  .voice-agent-layout,
+  .erp-grid,
+  .email-agent-layout,
+  .comms-layout,
+  .customers-grid {
+    padding: 12px 16px;
+  }
+  
+  /* Hide sidebar labels on tiny screens to fit just the icons */
+  .sidebar-link span {
+    display: none;
+  }
+  
+  .sidebar-link {
+    padding: 8px;
+  }
+  
+  .sidebar-link i {
+    margin-right: 0;
+    font-size: 15px;
+  }
+  
+  .sidebar-brand-text {
+    display: none; /* Hide brand label on tiny screens */
+  }
+}
+
+@media screen and (max-width: 600px) {
+  /* 1-column layout for KPI cards on small mobile screens */
+  .observability-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
