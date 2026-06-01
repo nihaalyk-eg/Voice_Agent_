@@ -90,27 +90,128 @@ async function getEmailTemplatesList() {
 }
 
 // ============================================================
-// Email Parsing Intelligence
+// Agentic Email Ingestion (OpenAI / Azure OpenAI with Fallback)
 // ============================================================
 
 /**
- * Extracts structured work order data from raw email content.
- * Uses regex patterns and keyword matching to identify:
- *  - Property address
- *  - Apartment number (or common area flag)
- *  - Issue description
- *  - Master key permission
- *  - Special notes
- *  - Phone number
- *  - Urgency indicators
+ * Extracts structured work order data from raw email content using an LLM.
+ * Falls back gracefully to deterministic regex parsing in case of network or API errors.
  */
-function parseEmailToWorkOrder(email, properties) {
+async function parseEmailToWorkOrder(email, properties) {
   const { from, subject, body } = email;
+  const azureKey = process.env.AZURE_OPENAI_API_KEY;
+  let azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
+  const standardKey = process.env.OPENAI_API_KEY;
+
+  const isAzure = !!(azureKey && azureEndpoint);
+  const hasAuth = isAzure || (standardKey && standardKey !== 'YOUR_OPENAI_API_KEY_HERE');
+
+  if (hasAuth) {
+    try {
+      console.log('[Email Agent] Initiating fully agentic LLM parsing of incoming email...');
+      
+      const propertiesAddresses = properties.map(p => p.address);
+      const systemPrompt = `You are a professional maintenance coordinator agent. Analyze the email and return a structured JSON response.
+
+Here is the list of official properties in our housing association database:
+${JSON.stringify(propertiesAddresses, null, 2)}
+
+You MUST return a JSON object with the following schema:
+{
+  "property_address": "Must match one of the properties from the list above exactly. If no match is found, output 'UNKNOWN — Requires manual review'",
+  "apartment_number": "Apartment or room identifier (e.g. A3, B12, 1375). If it is a shared space/stairwell/parking lot/common area, output 'Common Area'. If not specified, output 'N/A'",
+  "is_common_area": true/false (true if shared/common area, false if private apartment),
+  "issue_description": "Clean, professional, and detailed description of the reported issue",
+  "permit_master_key": true/false (true if they explicitly permit entering with the master key / yleisavain),
+  "special_notes": "Semicolon separated list of access codes, gate codes, pet details (dog/cat), tenant working hours, or other access considerations",
+  "caller_phone_number": "Extracted contact phone number. If none is found, output the sender's email address",
+  "urgency_level": "'Standard' or 'Urgent' (Urgent is only for active leaks, gas/fire threats, lockouts, or severe active damage)"
+}
+
+Incoming Email:
+From: ${from}
+Subject: ${subject}
+Body:
+${body}
+
+Ensure your response is valid JSON matching this schema.`;
+
+      let url;
+      let headers = {};
+      let requestBody = {};
+
+      if (isAzure) {
+        const deployment = process.env.CHAT_DEPLOYMENT_NAME || 'gpt-4o-mini';
+        let cleanedEndpoint = azureEndpoint.replace(/\/$/, '');
+        if (cleanedEndpoint.includes('services.ai.azure.com')) {
+          cleanedEndpoint = cleanedEndpoint.replace('services.ai.azure.com', 'openai.azure.com');
+        }
+        url = `${cleanedEndpoint}/openai/deployments/${deployment}/chat/completions?api-version=2024-08-01-preview`;
+        headers = {
+          'api-key': azureKey,
+          'Content-Type': 'application/json'
+        };
+        requestBody = {
+          messages: [
+            { role: 'system', content: 'You only output raw JSON.' },
+            { role: 'user', content: systemPrompt }
+          ],
+          response_format: { type: 'json_object' }
+        };
+      } else {
+        url = 'https://api.openai.com/v1/chat/completions';
+        headers = {
+          'Authorization': `Bearer ${standardKey}`,
+          'Content-Type': 'application/json'
+        };
+        requestBody = {
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: 'You only output raw JSON.' },
+            { role: 'user', content: systemPrompt }
+          ],
+          response_format: { type: 'json_object' }
+        };
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const jsonText = data.choices[0].message.content.trim();
+        const result = JSON.parse(jsonText);
+        console.log('[Email Agent] Agentic LLM parser parsed successfully:', result);
+        
+        return {
+          property_address: result.property_address || 'UNKNOWN — Requires manual review',
+          apartment_number: result.apartment_number || 'N/A',
+          is_common_area: !!result.is_common_area,
+          issue_description: result.issue_description || subject,
+          permit_master_key: !!result.permit_master_key,
+          special_notes: result.special_notes || '',
+          caller_phone_number: result.caller_phone_number || from,
+          urgency_level: result.urgency_level || 'Standard',
+          sender_email: from
+        };
+      } else {
+        const errText = await response.text();
+        console.error('[Email Agent] LLM API responded with error, falling back to regex parser:', errText);
+      }
+    } catch (err) {
+      console.error('[Email Agent] Error invoking agentic LLM parser, falling back to regex parser:', err);
+    }
+  }
+
+  // --- DETERMINISTIC FALLBACK (Rule-Based Regex Parser) ---
+  console.log('[Email Agent] Falling back to deterministic rule-based regex parsing engine.');
   const fullText = `${subject}\n${body}`;
   const lowerText = fullText.toLowerCase();
 
   // --- Address extraction ---
-  // Match known property addresses first
   let detectedAddress = null;
   for (const prop of properties) {
     if (lowerText.includes(prop.address.toLowerCase())) {
@@ -118,7 +219,6 @@ function parseEmailToWorkOrder(email, properties) {
       break;
     }
   }
-  // Fallback: try to find address-like patterns (Finnish street names)
   if (!detectedAddress) {
     const addressPatterns = [
       /(?:address|property|at|osoite)[:\s]*([A-ZÄÖÅa-zäöå]+(?:katu|tie|vägen|gatan|gränden|väg|intie|inkatu)\s*\d+[\s,]*[A-Za-zÄÖÅäöå]*)/i,
@@ -156,7 +256,6 @@ function parseEmailToWorkOrder(email, properties) {
   }
 
   // --- Issue description extraction ---
-  // Extract from subject first, then look for problem description in body
   let issueDescription = subject.replace(/^(?:re:|fwd?:|urgent:)\s*/i, '').trim();
   const problemPatterns = [
     /(?:problem|issue|fault|vika)[:\s]*(.+?)(?:\n|$)/i,
@@ -183,15 +282,12 @@ function parseEmailToWorkOrder(email, properties) {
 
   // --- Special notes extraction ---
   let specialNotes = [];
-  // Look for pet mentions
   const petMatch = fullText.match(/(?:I have|there is|there's|please note)[:\s]*(a (?:dog|cat|pet).+?)(?:\.|$)/im);
   if (petMatch) specialNotes.push(petMatch[1].trim());
 
-  // Look for availability/time constraints
   const timeMatch = fullText.match(/(?:available|I am available|availability)[:\s]*(.+?)(?:\.|$)/im);
   if (timeMatch) specialNotes.push(`Availability: ${timeMatch[1].trim()}`);
 
-  // Look for gate/door codes
   const codeMatch = fullText.match(/(?:gate|door) code[:\s]*(\S+)/i);
   if (codeMatch) specialNotes.push(`Access code: ${codeMatch[1].trim()}`);
 
@@ -859,8 +955,8 @@ app.post('/api/email-intake', async (req, res) => {
     // Fetch properties list for parser
     const properties = await getPropertiesList();
 
-    // Step 1: Parse the email into structured data
-    const extractedData = parseEmailToWorkOrder({ from, subject, body }, properties);
+    // Step 1: Parse the email into structured data using Agentic LLM
+    const extractedData = await parseEmailToWorkOrder({ from, subject, body }, properties);
     console.log(`[Email Agent] Extracted data:`, extractedData);
 
     // Step 2: Find responsible technician
