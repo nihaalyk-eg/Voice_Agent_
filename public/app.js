@@ -1,26 +1,4 @@
 // ==========================================================================
-// Keycloak Auth
-// ==========================================================================
-let kc = null;
-
-async function initKeycloak() {
-  kc = new Keycloak({
-    url: 'https://egauth.cto.aks.egdev.eu',
-    realm: 'EGAuthentication',
-    clientId: 'pitchsync'
-  });
-  await kc.init({ onLoad: 'login-required', checkLoginIframe: false });
-}
-
-async function authFetch(url, options = {}) {
-  await kc.updateToken(30);
-  return fetch(url, {
-    ...options,
-    headers: { ...options.headers, 'Authorization': `Bearer ${kc.token}` }
-  });
-}
-
-// ==========================================================================
 // Global State & UI Config
 // ==========================================================================
 let pc = null;
@@ -859,7 +837,7 @@ async function startCall() {
     setCallStatus('connecting', 'CONNECTING...');
     btnCall.disabled = true;
     btnCallText.textContent = 'Connecting...';
-    voiceOrb.className = 'voice-orb orb-connecting';
+    voiceOrb.className = 'voice-orb orb-connecting dialer-status-dot';
     addLogMessage('Initiating connection to OpenAI Realtime...', 'info');
 
     // 2. Fetch Ephemeral client token from backend
@@ -895,11 +873,11 @@ async function startCall() {
       addLogMessage('Voice channel opened! Speak to the agent.', 'success');
       setCallStatus('connected', 'CALL ACTIVE');
       btnCall.disabled = false;
-      btnCall.className = 'btn btn-primary btn-hangup';
-      btnCallText.textContent = 'End Phone Call';
+      btnCall.className = 'btn btn-call-action btn-call-primary btn-hangup';
+      btnCallText.textContent = 'End Call';
       btnMute.disabled = false;
       
-      voiceOrb.className = 'voice-orb orb-listening';
+      voiceOrb.className = 'voice-orb orb-listening dialer-status-dot';
 
       // Send session.update if session_config is provided (e.g., when using Azure OpenAI)
       if (sessionData && sessionData.session_config) {
@@ -957,9 +935,9 @@ async function startCall() {
     addLogMessage(`Error: ${error.message}`, 'error');
     setCallStatus('idle', 'OFF-LINE');
     btnCall.disabled = false;
-    btnCallText.textContent = 'Start Phone Call';
-    btnCall.className = 'btn btn-primary';
-    voiceOrb.className = 'voice-orb orb-idle';
+    btnCallText.textContent = 'Start Call';
+    btnCall.className = 'btn btn-call-action btn-call-primary';
+    voiceOrb.className = 'voice-orb orb-idle dialer-status-dot';
     cleanupCall();
   }
 }
@@ -1028,13 +1006,13 @@ function cleanupCall() {
 
   // Reset UI elements
   setCallStatus('idle', 'OFF-LINE');
-  btnCall.className = 'btn btn-primary';
-  btnCallText.textContent = 'Start Phone Call';
+  btnCall.className = 'btn btn-call-action btn-call-primary';
+  btnCallText.textContent = 'Start Call';
   btnCall.disabled = false;
   btnMute.disabled = true;
-  btnMute.className = 'btn btn-secondary';
-  btnMute.querySelector('span').textContent = 'Mute Mic';
-  voiceOrb.className = 'voice-orb orb-idle';
+  btnMute.className = 'btn btn-call-action btn-call-secondary';
+  btnMute.querySelector('span').textContent = 'Mute';
+  voiceOrb.className = 'voice-orb orb-idle dialer-status-dot';
 }
 
 function setCallStatus(type, label) {
@@ -1108,7 +1086,39 @@ async function executeTool(name, call_id, args) {
   let output = {};
 
   try {
-    if (name === 'get_maintenance_person') {
+    if (name === 'get_customer_profile') {
+      const phone = args.phone_number || '';
+      try {
+        const res = await authFetch(`/api/customers/by-phone/${encodeURIComponent(phone)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.found) {
+            const c = data.customer;
+            output = {
+              found: true,
+              full_name: c.full_name,
+              phone_number: c.phone_number,
+              email: c.email,
+              property_address: c.property_address,
+              apartment_number: c.apartment_number,
+              language_preference: c.language_preference,
+              notes: c.notes || ''
+            };
+            addLogMessage(`Customer identified: ${c.full_name} — ${c.property_address}, apt ${c.apartment_number}`, 'success');
+          } else {
+            output = { found: false, note: 'Caller not in resident database. Proceed with standard greeting.' };
+            addLogMessage(`Unknown caller: ${phone}`, 'info');
+          }
+        } else {
+          output = { found: false, note: 'Lookup failed. Proceed with standard greeting.' };
+        }
+      } catch (err) {
+        output = { found: false, note: 'Lookup error. Proceed with standard greeting.' };
+        console.error('get_customer_profile error:', err);
+      }
+    }
+
+    else if (name === 'get_maintenance_person') {
       const address = args.property_address || '';
       const matched = properties.find(p => p.address.toLowerCase().includes(address.toLowerCase()));
       
@@ -1442,8 +1452,91 @@ btnMute.addEventListener('click', () => {
   if (audioTrack) {
     audioTrack.enabled = !audioTrack.enabled;
     const isMuted = !audioTrack.enabled;
-    btnMute.querySelector('span').textContent = isMuted ? 'Unmute Mic' : 'Mute Mic';
-    btnMute.className = isMuted ? 'btn btn-secondary text-red' : 'btn btn-secondary';
+    btnMute.querySelector('span').textContent = isMuted ? 'Unmute' : 'Mute';
+    btnMute.className = isMuted ? 'btn btn-call-action btn-call-secondary btn-muted' : 'btn btn-call-action btn-call-secondary';
     addLogMessage(isMuted ? 'Microphone muted.' : 'Microphone unmuted.', 'info');
   }
 });
+
+// ==========================================================================
+// Phone Dialer & Keypad Handlers (Premium DTMF Features)
+// ==========================================================================
+function pressDigit(digit) {
+  const display = document.getElementById('dialer-number');
+  if (!display) return;
+  
+  // DTMF key press sound
+  playDTMF(digit);
+  
+  // Format phone numbers gracefully
+  if (display.value === '+358 40 123 4567') {
+    // Override starting digit if default number is present and a new number is started
+    display.value = digit;
+  } else {
+    if (display.value.length < 20) {
+      display.value += digit;
+    }
+  }
+}
+
+function backspaceDigit() {
+  const display = document.getElementById('dialer-number');
+  if (!display) return;
+  
+  // Short low beep for backspace click
+  playDTMFTone(220, 330, 80);
+  
+  if (display.value.length > 0) {
+    display.value = display.value.slice(0, -1);
+  }
+  
+  if (display.value.length === 0) {
+    display.value = '';
+  }
+}
+
+function playDTMF(digit) {
+  const dtmfFreqs = {
+    '1': [697, 1209], '2': [697, 1336], '3': [697, 1477],
+    '4': [770, 1209], '5': [770, 1336], '6': [770, 1477],
+    '7': [852, 1209], '8': [852, 1336], '9': [852, 1477],
+    '*': [941, 1209], '0': [941, 1336], '#': [941, 1477]
+  };
+
+  const freqs = dtmfFreqs[digit];
+  if (!freqs) return;
+  
+  playDTMFTone(freqs[0], freqs[1], 150);
+}
+
+function playDTMFTone(freq1, freq2, durationMs) {
+  const audioCtxClass = window.AudioContext || window.webkitAudioContext;
+  if (!audioCtxClass) return;
+
+  try {
+    const ctx = new audioCtxClass();
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    gainNode.gain.setValueAtTime(0.08, ctx.currentTime); // Standard soft feedback
+    
+    osc1.frequency.value = freq1;
+    osc2.frequency.value = freq2;
+    
+    osc1.connect(gainNode);
+    osc2.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    osc1.start();
+    osc2.start();
+    
+    setTimeout(() => {
+      osc1.stop();
+      osc2.stop();
+      ctx.close();
+    }, durationMs);
+  } catch (err) {
+    console.warn('Web Audio playback failed or permission restricted:', err);
+  }
+}

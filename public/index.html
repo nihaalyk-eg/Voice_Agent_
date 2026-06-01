@@ -3,304 +3,219 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kiinteistö-Agent | Order Agent — Voice & Email Maintenance POC</title>
-  <meta name="description" content="AI-powered property maintenance order agent combining real-time voice and email intake with ERP integration.">
-  <!-- Modern premium typography -->
+  <title>Voice Agent — Kiinteistö-Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="style.css">
-  <!-- Icons via FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <!-- Ambient background glow spots -->
   <div class="bg-glow spot-1"></div>
   <div class="bg-glow spot-2"></div>
 
-  <!-- Escalation Alert Banner (hidden by default) -->
   <div id="escalation-banner" class="escalation-banner hidden">
     <div class="escalation-content">
       <i class="fa-solid fa-triangle-exclamation"></i>
       <span id="escalation-text">EMERGENCY ESCALATION — Transferring to 24/7 operator</span>
-      <button id="btn-dismiss-escalation" class="btn-dismiss-escalation" onclick="dismissEscalation()">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
+      <button class="btn-dismiss-escalation" onclick="dismissEscalation()"><i class="fa-solid fa-xmark"></i></button>
     </div>
   </div>
 
-  <div class="app-container">
-    <!-- Left Column: Voice Console -->
-    <section class="console-panel">
-      <header class="panel-header">
-        <div class="brand">
-          <div class="logo-mark">
-            <i class="fa-solid fa-microphone-lines"></i>
-          </div>
-          <div>
-            <h1>Kiinteistö-Agent</h1>
-            <p class="subtitle">Order Agent — Voice & Email POC</p>
-          </div>
-        </div>
-        <div id="status-badge" class="status-indicator status-idle">
-          <span class="status-dot"></span>
-          <span id="status-text">OFF-LINE</span>
-        </div>
-      </header>
-
-      <!-- Holographic Voice Orb Display -->
-      <div class="orb-container">
-        <div class="orb-backdrop"></div>
-        <div class="orb-wrapper">
-          <!-- Multi-layered glowing visualizer -->
-          <div id="voice-orb" class="voice-orb orb-idle">
-            <div class="orb-wave wave-1"></div>
-            <div class="orb-wave wave-2"></div>
-            <div class="orb-wave wave-3"></div>
-            <div class="orb-core">
-              <i class="fa-solid fa-phone-volume"></i>
-            </div>
-          </div>
-        </div>
-        <div class="audio-levels">
-          <div id="audio-bar-in" class="audio-bar-wrapper">
-            <span>MIC IN</span>
-            <div class="bar-bg"><div id="bar-in-fill" class="bar-fill"></div></div>
-          </div>
-          <div id="audio-bar-out" class="audio-bar-wrapper">
-            <span>AGENT OUT</span>
-            <div class="bar-bg"><div id="bar-out-fill" class="bar-fill"></div></div>
-          </div>
-        </div>
+  <div class="app-layout">
+    <!-- Sidebar Nav -->
+    <aside class="sidebar-nav">
+      <div class="sidebar-brand">
+        <div class="logo-mark"><i class="fa-solid fa-microphone-lines"></i></div>
+        <span class="sidebar-brand-text">Kiinteistö</span>
       </div>
-
-      <!-- Controls Panel -->
-      <div class="controls-card">
-        <div class="buttons-row">
-          <button id="btn-call" class="btn btn-primary">
-            <i class="fa-solid fa-phone"></i>
-            <span id="btn-call-text">Start Phone Call</span>
-          </button>
-          <button id="btn-mute" class="btn btn-secondary" disabled>
-            <i class="fa-solid fa-microphone-slash"></i>
-            <span>Mute Mic</span>
-          </button>
-        </div>
-        <div class="meta-info">
-          <div class="meta-item">
-            <span class="label">Caller ID:</span>
-            <span class="valueHighlight">+358 40 123 4567</span>
-          </div>
-          <div class="meta-item">
-            <span class="label">Model:</span>
-            <span class="value">gpt-realtime-2</span>
-          </div>
-          <div class="meta-item">
-            <span class="label">Voice:</span>
-            <span class="value">alloy</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Live Dialogue Transcripts -->
-      <div class="transcript-card">
-        <h3 class="card-title"><i class="fa-solid fa-comment-dots"></i> Live Conversation Transcript</h3>
-        <div id="transcript-feed" class="transcript-feed">
-          <div class="transcript-placeholder">
-            <i class="fa-solid fa-volume-high"></i>
-            <p>Start a call to speak with the Kiinteistö-Agent. The conversation transcript will stream here in real-time.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Vertical Splitter 1: Console to ERP -->
-    <div class="splitter" id="splitter-console-erp"></div>
-
-    <!-- Right Column: ERP System -->
-    <main class="erp-panel">
-      <header class="panel-header border-bottom">
-        <div class="brand">
-          <div class="logo-mark erp-logo">
-            <i class="fa-solid fa-network-wired"></i>
-          </div>
-          <div>
-            <h2>MaintTrac™ ERP System</h2>
-            <p class="subtitle">Live Maintenance & Dispatch Dashboard</p>
-          </div>
-        </div>
-        <div class="erp-sync-status">
-          <span class="pulse-green"></span>
-          <span>SYSTEM ONLINE</span>
-        </div>
-      </header>
-
-      <!-- Tab Navigation -->
-      <nav class="erp-tab-nav" id="erp-tab-nav">
-        <button class="erp-tab active" data-tab="work-orders" id="tab-work-orders" onclick="switchTab('work-orders')">
-          <i class="fa-solid fa-receipt"></i>
-          <span>Work Orders</span>
-          <span id="wo-tab-badge" class="tab-badge">4</span>
-        </button>
-        <button class="erp-tab" data-tab="email-intake" id="tab-email-intake" onclick="switchTab('email-intake')">
-          <i class="fa-solid fa-envelope-open-text"></i>
-          <span>Email Agent</span>
-        </button>
-        <button class="erp-tab" data-tab="comms-history" id="tab-comms-history" onclick="switchTab('comms-history')">
-          <i class="fa-solid fa-clock-rotate-left"></i>
-          <span>Comms History</span>
-          <span id="comms-tab-badge" class="tab-badge">3</span>
-        </button>
+      <nav class="sidebar-links">
+        <a href="/" class="sidebar-link active"><i class="fa-solid fa-phone-volume"></i><span>Voice Agent</span></a>
+        <a href="/work-orders.html" class="sidebar-link"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
+        <a href="/email.html" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
+        <a href="/communications.html" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
+        <a href="/customers.html" class="sidebar-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
       </nav>
-
-      <!-- TAB 1: Work Orders (Default) -->
-      <div class="erp-tab-content active" id="tab-content-work-orders">
-        <div class="erp-grid">
-          <!-- Roster & Active Assets -->
-          <div class="erp-sidebar">
-            <!-- Technicians Roster -->
-            <div class="erp-card scrollable-card">
-              <h3 class="erp-card-title"><i class="fa-solid fa-user-gear"></i> Active Technicians</h3>
-              <ul id="tech-list" class="tech-list">
-                <li class="loading-item">Loading database...</li>
-              </ul>
-            </div>
-
-            <!-- Properties Reference -->
-            <div class="erp-card scrollable-card">
-              <h3 class="erp-card-title"><i class="fa-solid fa-building"></i> Registered Properties</h3>
-              <ul id="property-list" class="property-list">
-                <li class="loading-item">Loading database...</li>
-              </ul>
-            </div>
-          </div>
-
-          <!-- Vertical Splitter 2: Sidebar to Board -->
-          <div class="splitter splitter-sub" id="splitter-sidebar-board"></div>
-
-          <!-- Live Work Orders Board -->
-          <div class="erp-main-board">
-            <div class="erp-card main-board-card">
-              <div class="board-header">
-                <h3 class="erp-card-title"><i class="fa-solid fa-receipt"></i> Active Maintenance Work Orders</h3>
-                <span id="wo-count" class="badge-count">0 Active</span>
-              </div>
-              <div id="work-orders-board" class="work-orders-board">
-                <div class="loading-placeholder">
-                  <i class="fa-solid fa-circle-notch fa-spin"></i>
-                  <p>Loading active work orders...</p>
-                </div>
-              </div>
-            </div>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-user-avatar" id="sidebar-user-avatar">?</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name" id="sidebar-user-name">Loading...</div>
+            <div class="sidebar-user-role">Operator</div>
           </div>
         </div>
+        <button class="btn-sidebar-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
       </div>
+    </aside>
 
-      <!-- TAB 2: Email Intake Agent -->
-      <div class="erp-tab-content" id="tab-content-email-intake">
-        <div class="email-agent-layout">
-          <!-- Left: Email Submission Form -->
-          <div class="email-form-panel">
-            <div class="erp-card">
-              <h3 class="erp-card-title"><i class="fa-solid fa-paper-plane"></i> Submit Email for Processing</h3>
-              <p class="email-form-desc">Paste or compose a maintenance request email below. The AI agent will automatically extract structured data and create a work order.</p>
-              
-              <div class="email-templates-bar">
-                <span class="templates-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Quick Templates:</span>
-                <div id="email-template-buttons" class="email-template-buttons">
-                  <!-- JS filled -->
-                </div>
+    <!-- Page Content -->
+    <div class="page-main">
+      <div class="app-container">
+        <!-- Left: Voice Console -->
+        <section class="console-panel">
+          <header class="panel-header">
+            <div class="brand">
+              <div class="logo-mark"><i class="fa-solid fa-microphone-lines"></i></div>
+              <div>
+                <h1>Voice Agent</h1>
+                <p class="subtitle">GPT-Realtime-2 WebRTC</p>
               </div>
+            </div>
+            <div id="status-badge" class="status-indicator status-idle">
+              <span class="status-dot"></span>
+              <span id="status-text">OFF-LINE</span>
+            </div>
+          </header>
 
-              <form id="email-form" class="email-form" onsubmit="submitEmail(event)">
-                <div class="form-group">
-                  <label for="email-from"><i class="fa-solid fa-user"></i> From (Sender)</label>
-                  <input type="email" id="email-from" placeholder="e.g. liisa.virtanen@gmail.com" required>
-                </div>
-                <div class="form-group">
-                  <label for="email-subject"><i class="fa-solid fa-heading"></i> Subject</label>
-                  <input type="text" id="email-subject" placeholder="e.g. Water leak in apartment B12" required>
-                </div>
-                <div class="form-group">
-                  <label for="email-body"><i class="fa-solid fa-align-left"></i> Email Body</label>
-                  <textarea id="email-body" rows="10" placeholder="Write or paste the full email body here..." required></textarea>
-                </div>
-                <button type="submit" class="btn btn-email-submit" id="btn-submit-email">
-                  <i class="fa-solid fa-robot"></i>
-                  <span>Process with AI Email Agent</span>
-                </button>
-              </form>
+          <!-- Dialer Keypad -->
+          <div class="dialer-container">
+            <div class="dialer-display-wrap">
+              <span id="voice-orb" class="voice-orb orb-idle dialer-status-dot"></span>
+              <input type="text" id="dialer-number" class="dialer-display-input" value="+358 40 123 4567" readonly />
+              <button id="btn-backspace" class="btn-backspace" onclick="backspaceDigit()"><i class="fa-solid fa-delete-left"></i></button>
+            </div>
+
+            <!-- Visualizer Bars embedded in Dialer -->
+            <div class="dialer-visualizer">
+              <div class="vis-bar">
+                <span>MIC IN</span>
+                <div class="bar-bg"><div id="bar-in-fill" class="bar-fill"></div></div>
+              </div>
+              <div class="vis-bar">
+                <span>AGENT OUT</span>
+                <div class="bar-bg"><div id="bar-out-fill" class="bar-fill"></div></div>
+              </div>
+            </div>
+
+            <!-- Keypad Grid -->
+            <div class="keypad-grid">
+              <button class="keypad-btn" onclick="pressDigit('1')">
+                <span class="btn-num">1</span>
+                <span class="btn-letters">&nbsp;</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('2')">
+                <span class="btn-num">2</span>
+                <span class="btn-letters">ABC</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('3')">
+                <span class="btn-num">3</span>
+                <span class="btn-letters">DEF</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('4')">
+                <span class="btn-num">4</span>
+                <span class="btn-letters">GHI</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('5')">
+                <span class="btn-num">5</span>
+                <span class="btn-letters">JKL</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('6')">
+                <span class="btn-num">6</span>
+                <span class="btn-letters">MNO</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('7')">
+                <span class="btn-num">7</span>
+                <span class="btn-letters">PQRS</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('8')">
+                <span class="btn-num">8</span>
+                <span class="btn-letters">TUV</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('9')">
+                <span class="btn-num">9</span>
+                <span class="btn-letters">WXYZ</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('*')">
+                <span class="btn-num">*</span>
+                <span class="btn-letters">&nbsp;</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('0')">
+                <span class="btn-num">0</span>
+                <span class="btn-letters">+</span>
+              </button>
+              <button class="keypad-btn" onclick="pressDigit('#')">
+                <span class="btn-num">#</span>
+                <span class="btn-letters">&nbsp;</span>
+              </button>
+            </div>
+
+            <!-- Dialer controls -->
+            <div class="dialer-controls-row">
+              <button id="btn-call" class="btn btn-call-action btn-call-primary" onclick="toggleCall()">
+                <i class="fa-solid fa-phone"></i>
+                <span id="btn-call-text">Start Call</span>
+              </button>
+              <button id="btn-mute" class="btn btn-call-action btn-call-secondary" disabled onclick="toggleMute()">
+                <i class="fa-solid fa-microphone-slash"></i>
+                <span>Mute</span>
+              </button>
+            </div>
+            
+            <div class="dialer-meta">
+              <div class="meta-item">
+                <span class="label">Caller ID:</span>
+                <span class="valueHighlight" id="dialer-caller-id">+358 40 123 4567</span>
+              </div>
+              <div class="meta-item">
+                <span class="label">Model:</span>
+                <span class="value">gpt-realtime-2</span>
+              </div>
             </div>
           </div>
 
-          <!-- Right: Extraction Results -->
-          <div class="email-results-panel">
-            <div class="erp-card" id="email-results-card">
-              <h3 class="erp-card-title"><i class="fa-solid fa-microscope"></i> Extraction Results</h3>
-              <div id="email-results" class="email-results">
-                <div class="loading-placeholder">
-                  <i class="fa-solid fa-inbox"></i>
-                  <p>Submit an email to see AI extraction results and the auto-created work order.</p>
-                </div>
+          <div class="transcript-card">
+            <h3 class="card-title"><i class="fa-solid fa-comment-dots"></i> Live Transcript</h3>
+            <div id="transcript-feed" class="transcript-feed">
+              <div class="transcript-placeholder">
+                <i class="fa-solid fa-volume-high"></i>
+                <p>Start a call to speak with the agent. Transcript streams here in real-time.</p>
               </div>
             </div>
-            <!-- Processed Emails Feed -->
-            <div class="erp-card" style="margin-top: 20px; flex: 1;">
-              <h3 class="erp-card-title"><i class="fa-solid fa-list-check"></i> Recently Processed Emails</h3>
-              <div id="processed-emails-feed" class="processed-emails-feed">
-                <div class="loading-placeholder">
-                  <i class="fa-solid fa-envelope-circle-check"></i>
-                  <p>No emails processed yet.</p>
+          </div>
+        </section>
+
+        <div class="splitter" id="splitter-console-erp"></div>
+
+        <!-- Right: Live Work Orders -->
+        <main class="erp-panel">
+          <header class="panel-header border-bottom">
+            <div class="brand">
+              <div class="logo-mark erp-logo"><i class="fa-solid fa-network-wired"></i></div>
+              <div>
+                <h2>MaintTrac™ ERP</h2>
+                <p class="subtitle">Live Work Orders</p>
+              </div>
+            </div>
+            <div class="erp-sync-status">
+              <span class="pulse-green"></span>
+              <span>SYSTEM ONLINE</span>
+            </div>
+          </header>
+
+          <div class="erp-grid">
+            <div class="erp-main-board" style="padding-left: 0;">
+              <div class="erp-card main-board-card">
+                <div class="board-header">
+                  <h3 class="erp-card-title"><i class="fa-solid fa-receipt"></i> Active Work Orders</h3>
+                  <span id="wo-count" class="badge-count">0 Active</span>
+                </div>
+                <div id="work-orders-board" class="work-orders-board">
+                  <div class="loading-placeholder">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                    <p>Loading work orders...</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
-
-      <!-- TAB 3: Communications History -->
-      <div class="erp-tab-content" id="tab-content-comms-history">
-        <div class="comms-layout">
-          <!-- Filter Bar -->
-          <div class="comms-filter-bar">
-            <button class="comms-filter-btn active" data-filter="all" onclick="filterComms('all')">
-              <i class="fa-solid fa-layer-group"></i> All
-            </button>
-            <button class="comms-filter-btn" data-filter="call_transcript" onclick="filterComms('call_transcript')">
-              <i class="fa-solid fa-phone"></i> Call Transcripts
-            </button>
-            <button class="comms-filter-btn" data-filter="sms_confirmation" onclick="filterComms('sms_confirmation')">
-              <i class="fa-solid fa-message"></i> SMS Confirmations
-            </button>
-            <button class="comms-filter-btn" data-filter="email_intake" onclick="filterComms('email_intake')">
-              <i class="fa-solid fa-envelope"></i> Email Intakes
-            </button>
-            <button class="comms-filter-btn" data-filter="escalation" onclick="filterComms('escalation')">
-              <i class="fa-solid fa-triangle-exclamation"></i> Escalations
-            </button>
-          </div>
-
-          <!-- Timeline -->
-          <div class="erp-card" style="flex: 1;">
-            <div id="comms-timeline" class="comms-timeline">
-              <div class="loading-placeholder">
-                <i class="fa-solid fa-circle-notch fa-spin"></i>
-                <p>Loading communications history...</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </main>
+    </div>
   </div>
 
-  <!-- Audio elements for WebRTC -->
   <audio id="remote-audio" autoplay></audio>
-
-  <!-- Keycloak JS adapter -->
   <script src="https://egauth.cto.aks.egdev.eu/js/keycloak.js"></script>
-  <!-- JS Implementation -->
+  <script src="shared.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

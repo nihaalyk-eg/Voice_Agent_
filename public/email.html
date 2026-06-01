@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Agent — Kiinteistö-Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="bg-glow spot-1"></div>
+  <div class="bg-glow spot-2"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar-nav">
+      <div class="sidebar-brand">
+        <div class="logo-mark"><i class="fa-solid fa-microphone-lines"></i></div>
+        <span class="sidebar-brand-text">Kiinteistö</span>
+      </div>
+      <nav class="sidebar-links">
+        <a href="/" class="sidebar-link"><i class="fa-solid fa-phone-volume"></i><span>Voice Agent</span></a>
+        <a href="/work-orders.html" class="sidebar-link"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
+        <a href="/email.html" class="sidebar-link active"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
+        <a href="/communications.html" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
+        <a href="/customers.html" class="sidebar-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-user-avatar" id="sidebar-user-avatar">?</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name" id="sidebar-user-name">Loading...</div>
+            <div class="sidebar-user-role">Operator</div>
+          </div>
+        </div>
+        <button class="btn-sidebar-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+      </div>
+    </aside>
+
+    <div class="page-main">
+      <div class="app-container" style="flex-direction:column;">
+        <header class="page-header">
+          <div class="brand">
+            <div class="logo-mark" style="background:linear-gradient(135deg,hsl(43,96%,56%),hsl(30,90%,50%));box-shadow:0 4px 20px rgba(251,191,36,0.3);">
+              <i class="fa-solid fa-envelope-open-text"></i>
+            </div>
+            <div>
+              <h1>Email Agent</h1>
+              <p class="subtitle">AI-powered email intake & work order creation</p>
+            </div>
+          </div>
+        </header>
+
+        <div class="erp-tab-content active" style="flex:1;overflow:hidden;">
+          <div class="email-agent-layout">
+            <div class="email-form-panel">
+              <div class="erp-card">
+                <h3 class="erp-card-title"><i class="fa-solid fa-paper-plane"></i> Submit Email for Processing</h3>
+                <p class="email-form-desc">Paste or compose a maintenance request email. The AI agent will extract structured data and create a work order.</p>
+                <div class="email-templates-bar">
+                  <span class="templates-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Quick Templates:</span>
+                  <div id="email-template-buttons" class="email-template-buttons"></div>
+                </div>
+                <form id="email-form" class="email-form" onsubmit="submitEmail(event)">
+                  <div class="form-group">
+                    <label for="email-from"><i class="fa-solid fa-user"></i> From (Sender)</label>
+                    <input type="email" id="email-from" placeholder="e.g. liisa.virtanen@gmail.com" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="email-subject"><i class="fa-solid fa-heading"></i> Subject</label>
+                    <input type="text" id="email-subject" placeholder="e.g. Water leak in apartment B12" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="email-body"><i class="fa-solid fa-align-left"></i> Email Body</label>
+                    <textarea id="email-body" rows="10" placeholder="Write or paste the full email body here..." required></textarea>
+                  </div>
+                  <button type="submit" class="btn-email-submit" id="btn-submit-email">
+                    <i class="fa-solid fa-robot"></i>
+                    <span>Process with AI Email Agent</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div class="email-results-panel">
+              <div class="erp-card" id="email-results-card">
+                <h3 class="erp-card-title"><i class="fa-solid fa-microscope"></i> Extraction Results</h3>
+                <div id="email-results" class="email-results">
+                  <div class="loading-placeholder">
+                    <i class="fa-solid fa-inbox"></i>
+                    <p>Submit an email to see AI extraction results.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="erp-card" style="margin-top:20px;flex:1;">
+                <h3 class="erp-card-title"><i class="fa-solid fa-list-check"></i> Recently Processed Emails</h3>
+                <div id="processed-emails-feed" class="processed-emails-feed">
+                  <div class="loading-placeholder">
+                    <i class="fa-solid fa-envelope-circle-check"></i>
+                    <p>No emails processed yet.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://egauth.cto.aks.egdev.eu/js/keycloak.js"></script>
+  <script src="shared.js"></script>
+  <script src="email.js"></script>
+</body>
+</html>

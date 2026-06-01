@@ -76,7 +76,22 @@ async function runSeed() {
       console.log(`Seeded ${communications.length} communications.`);
     }
 
-    // 4. Seed email_templates
+    // 4. Seed customers
+    console.log('Seeding customers...');
+    const customersPath = path.join(__dirname, '../data/customers.json');
+    if (fs.existsSync(customersPath)) {
+      const customers = JSON.parse(fs.readFileSync(customersPath, 'utf8'));
+      for (const c of customers) {
+        await client.query(`
+          INSERT INTO customers (id, full_name, phone_number, email, property_address, apartment_number, language_preference, notes)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (id) DO NOTHING
+        `, [c.id, c.full_name, c.phone_number, c.email, c.property_address, c.apartment_number, c.language_preference, c.notes]);
+      }
+      console.log(`Seeded ${customers.length} customers.`);
+    }
+
+    // 5. Seed email_templates
     console.log('Seeding email templates...');
     const templatesPath = path.join(__dirname, '../data/email_templates.json');
     if (fs.existsSync(templatesPath)) {

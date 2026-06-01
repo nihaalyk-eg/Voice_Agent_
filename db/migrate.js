@@ -69,7 +69,23 @@ async function runMigrations() {
       )
     `);
 
-    // 4. Create email_templates table
+    // 4. Create customers table
+    console.log('Creating customers table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id VARCHAR(50) PRIMARY KEY,
+        full_name VARCHAR(255) NOT NULL,
+        phone_number VARCHAR(50) NOT NULL UNIQUE,
+        email VARCHAR(255),
+        property_address VARCHAR(255),
+        apartment_number VARCHAR(50),
+        language_preference VARCHAR(20) DEFAULT 'Finnish',
+        notes TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // 5. Create email_templates table
     console.log('Creating email_templates table...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS email_templates (
@@ -91,6 +107,8 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_communications_type ON communications(type);
       CREATE INDEX IF NOT EXISTS idx_communications_timestamp ON communications(timestamp DESC);
       CREATE INDEX IF NOT EXISTS idx_communications_linked_work_order ON communications(linked_work_order);
+      CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone_number);
+      CREATE INDEX IF NOT EXISTS idx_customers_property ON customers(property_address);
     `);
 
     await client.query('COMMIT');

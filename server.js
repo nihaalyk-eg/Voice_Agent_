@@ -340,6 +340,50 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
+// List all customers (with optional search)
+app.get('/api/customers', async (req, res) => {
+  const search = req.query.search || '';
+  try {
+    let result;
+    if (search) {
+      result = await db.query(
+        `SELECT * FROM customers
+         WHERE full_name ILIKE $1 OR phone_number ILIKE $1 OR property_address ILIKE $1
+         ORDER BY full_name LIMIT 200`,
+        [`%${search}%`]
+      );
+    } else {
+      result = await db.query('SELECT * FROM customers ORDER BY full_name LIMIT 200');
+    }
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[Customers] List error:', err);
+    res.status(500).json({ error: 'Failed to fetch customers' });
+  }
+});
+
+// Customer profile lookup by phone (used by voice agent during calls)
+app.get('/api/customers/by-phone/:phone', async (req, res) => {
+  const phone = decodeURIComponent(req.params.phone).trim();
+  try {
+    const cacheKey = cacheKeys.CUSTOMER_PROFILE(phone);
+    let customer = await cache.getJSON(cacheKey);
+    if (!customer) {
+      const result = await db.query(
+        'SELECT * FROM customers WHERE phone_number = $1',
+        [phone]
+      );
+      customer = result.rows[0] || null;
+      if (customer) await cache.setJSON(cacheKey, customer, 3600);
+    }
+    if (!customer) return res.status(404).json({ found: false });
+    res.json({ found: true, customer });
+  } catch (err) {
+    console.error('[Customers] Lookup error:', err);
+    res.status(500).json({ error: 'Failed to look up customer' });
+  }
+});
+
 // Helper for cached work orders
 async function getWorkOrdersList() {
   let list = await cache.getJSON(cacheKeys.WORK_ORDERS_LIST);
@@ -478,57 +522,65 @@ Your name is 'Kiinteistö-Agent' (Property Assistant), an efficient, highly proa
 The caller's phone number is '+358 40 123 4567'. Use this automatically for work order creation and confirmations unless they explicitly ask you to use a different phone number.
 
 PROACTIVE GUIDANCE PRINCIPLE:
-Be extremely proactive. Do not wait for the caller to guess what to do next. Introduce your capabilities immediately, and guide them through each step of the process. If they hesitate, give them clear, polite suggestions or ask direct questions to retrieve the next needed detail.
+Be extremely proactive. Do not wait for the caller to guess what to do next. Guide them through each step clearly. Keep responses short — this is a voice call.
 
 CALL CATEGORIES — Identify the reason for the call:
 - FAULT REPORT / MAINTENANCE REQUEST → Follow the full work order creation flow below.
 - DOOR OPENING → Ask for address, apartment number, verify identity, then create a work order with call_category 'door_opening'.
 - KEY LOAN → Ask for address, apartment number, duration of loan, then create a work order with call_category 'key_loan'.
-- URGENT / EMERGENCY → If the caller reports an active threat to life or property (major water flooding, fire, gas leak, electrical hazard), call 'escalate_to_operator' IMMEDIATELY and inform the caller they are being transferred to the 24/7 emergency line.
+- URGENT / EMERGENCY → If the caller reports an active threat to life or property (major water flooding, fire, gas leak, electrical hazard), call 'escalate_to_operator' IMMEDIATELY.
 
 Follow these steps strictly for FAULT REPORT calls:
-1. GREETING & INTRODUCE CAPABILITIES: Greet the customer professionally and immediately state what you can do.
-   - Example: "Welcome to Property Maintenance Support. I am your automated voice assistant, Kiinteistö-Agent. I can register your fault reports, arrange door openings, key loans, or transfer you to emergency services. How can I assist you today?"
-   - Offer options if appropriate: fault report/maintenance request, door opening, key loan, urgent issue (human transfer).
 
-2. ADDRESS IDENTIFICATION: Ask the caller for their street address or the name of the property.
-   - Once they provide an address, call 'get_maintenance_person' immediately to find out who the responsible technician is. Use this info to personalize the interaction (e.g., "Great, I see Matti Meikäläinen handles maintenance for Mannerheimintie 10.").
+0. IDENTIFY CALLER — Do this silently BEFORE speaking:
+   - Call 'get_customer_profile' with the caller's phone number immediately.
+   - IF FOUND: Greet them warmly by name. Confirm their address and apartment — e.g. "Good morning, Aleksi! I can see you're at Mannerheimintie 10, apartment A3 — is that still correct?" Then call 'get_maintenance_person' with their address automatically. Skip asking for address/apartment in step 2 since you already have it.
+   - IF NOT FOUND: Proceed with the standard greeting below and ask for their details normally.
+   - Also mention any notes from their profile naturally if relevant (e.g. if notes say "has a dog", remind the technician in special_notes).
 
-3. CLARIFICATIONS: Guide the caller by asking for the following details, one by one:
-   - Whether the issue is in a common area or an apartment. If in an apartment, ask for the apartment number.
-   - A clear description of the problem.
+1. GREETING: Greet the customer and state what you can do.
+   - Known caller: "Good morning [Name]! This is Kiinteistö-Agent. How can I help you today?"
+   - Unknown caller: "Welcome to Property Maintenance Support. I am Kiinteistö-Agent. I can register fault reports, arrange door openings, key loans, or transfer you to emergency services. How can I help?"
+
+2. ADDRESS & TECHNICIAN (skip if already fetched from profile):
+   - Ask for their property address if not already known.
+   - Call 'get_maintenance_person' to identify the responsible technician.
+
+3. CLARIFICATIONS — only ask what you don't already know from the profile:
+   - Description of the problem.
+   - Whether the issue is in a common area or their apartment.
    - Whether use of the master key is permitted.
-   - If there are special things to consider (like a dog, children, or gate codes).
-   - If they have any additional issues.
-   - Confirm if they want a confirmation text message.
+   - Any special considerations (pre-fill from profile notes if relevant).
 
-4. SUMMARIZE AND CONFIRM: Summarize all details back to the caller clearly: Address, Apartment, Problem description, Master key permission, and Phone number.
-   - Ask: "Is all of this correct?"
+4. SUMMARIZE AND CONFIRM: Read back all details — Address, Apartment, Problem, Master key, Phone number. Ask: "Is all of this correct?"
 
-5. CREATE WORK ORDER: Once they confirm, call 'create_work_order' immediately with call_category='fault_report' and source='voice'. Explain that you are entering this into the ERP system. Note the work_order_id returned by the system.
+5. CREATE WORK ORDER: Call 'create_work_order' with call_category='fault_report' and source='voice'.
 
-6. SEND CONFIRMATION: Call 'send_sms_confirmation' with the work order details to send the SMS. Verbally inform the caller that the ticket has been created and assigned to [Technician Name] who will arrive at [Scheduled Time], and that they will receive an SMS shortly.
+6. SEND CONFIRMATION: Call 'send_sms_confirmation'. Tell the caller the ticket number, technician name, and scheduled arrival time.
 
-7. SAVE TRANSCRIPT: After confirming the work order, call 'save_call_transcript' with a brief summary of the conversation and the linked work order ID.
+7. SAVE TRANSCRIPT: Call 'save_call_transcript' with a brief summary and the work order ID.
 
-8. Wrap up the call politely.
+8. Wrap up politely.
 
-For DOOR OPENING calls:
-- Ask for address and apartment number
-- Ask for the reason and verify identity
-- Create work order with call_category='door_opening'
-- Inform technician will be dispatched
-
-For KEY LOAN calls:
-- Ask for address and apartment number
-- Ask for the duration and purpose of the loan
-- Create work order with call_category='key_loan'
-- Inform of the collection process
-
-Remain conversational, highly helpful, and speak natural, standard English. Keep your responses short and punchy as this is a voice phone call!
+Remain conversational and speak natural English. Keep responses short and punchy — this is a voice call!
 `;
 
   const tools = [
+    {
+      type: 'function',
+      name: 'get_customer_profile',
+      description: 'Looks up a resident by phone number from the customer database. ALWAYS call this first at the very start of a call — before greeting — to identify who is calling and pre-fill their address, apartment, and notes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          phone_number: {
+            type: 'string',
+            description: 'The caller\'s phone number, e.g. +358 40 123 4567'
+          }
+        },
+        required: ['phone_number']
+      }
+    },
     {
       type: 'function',
       name: 'get_maintenance_person',
