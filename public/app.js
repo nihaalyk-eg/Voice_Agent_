@@ -54,6 +54,43 @@ function resetLiveContext() {
   renderLiveContextTable();
 }
 
+function resetLiveContextManual() {
+  resetLiveContext();
+
+  // Reset transcript feed to placeholder
+  const feed = document.getElementById('transcript-feed');
+  if (feed) {
+    feed.innerHTML = `
+      <div class="transcript-placeholder">
+        <i class="fa-solid fa-volume-high"></i>
+        <p>Dial a resident phone number and click 'Start Call' to speak with the automated maintenance agent. Live transcripts will stream here in real-time.</p>
+      </div>
+    `;
+  }
+
+  // Reset dialer display back to default caller
+  const dialerInput = document.getElementById('dialer-number');
+  if (dialerInput) {
+    dialerInput.value = '+358 40 123 4567';
+  }
+
+  // Reset visualizer and orb
+  const orb = document.getElementById('voice-orb');
+  if (orb) {
+    orb.className = 'voice-orb orb-idle';
+    orb.style.transform = 'scale(1)';
+    orb.style.boxShadow = '';
+  }
+
+  // Reset mic/agent levels fill
+  const barIn = document.getElementById('bar-in-fill');
+  const barOut = document.getElementById('bar-out-fill');
+  if (barIn) barIn.style.width = '0%';
+  if (barOut) barOut.style.width = '0%';
+
+  addLogMessage('Operator Console reset successfully.', 'info');
+}
+
 function renderLiveContextTable() {
   const tbody = document.getElementById('context-table-body');
   if (!tbody) return;

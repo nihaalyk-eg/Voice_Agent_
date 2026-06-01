@@ -201,9 +201,14 @@
             <div class="erp-card scrollable-card context-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
               <div class="context-card-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); padding-bottom: 10px; margin-bottom: 12px;">
                 <h3 class="erp-card-title" style="margin-bottom: 0; text-transform: uppercase; font-size: 13px; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 8px;"><i class="fa-solid fa-brain"></i> Dynamic Context Builder</h3>
-                <span id="context-accuracy" class="badge-source source-voice" style="font-size: 10px; padding: 2px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; background: rgba(139, 92, 246, 0.12); color: var(--violet-glow); border: 1px solid rgba(139, 92, 246, 0.25);">
-                  <i class="fa-solid fa-microchip"></i> Real-time HUD
-                </span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <button id="btn-reset-context" class="btn btn-secondary" onclick="resetLiveContextManual()" style="font-size: 11px; padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-arrows-rotate"></i> Reset HUD
+                  </button>
+                  <span id="context-accuracy" class="badge-source source-voice" style="font-size: 10px; padding: 2px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 4px; background: rgba(139, 92, 246, 0.12); color: var(--violet-glow); border: 1px solid rgba(139, 92, 246, 0.25);">
+                    <i class="fa-solid fa-microchip"></i> Real-time HUD
+                  </span>
+                </div>
               </div>
               <div class="context-table-wrapper" style="flex: 1; overflow-y: auto; padding-right: 4px;">
                 <table class="context-table">

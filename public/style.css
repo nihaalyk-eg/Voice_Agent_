@@ -2811,3 +2811,22 @@ body {
   50% { opacity: 1; }
   100% { opacity: 0.65; }
 }
+
+/* Glassmorphic Reset HUD Button */
+#btn-reset-context {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-secondary) !important;
+}
+
+#btn-reset-context:hover {
+  background: rgba(139, 92, 246, 0.12) !important;
+  border-color: var(--violet-glow) !important;
+  color: var(--violet-glow) !important;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+#btn-reset-context:active {
+  transform: translateY(0);
+}
