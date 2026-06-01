@@ -2663,5 +2663,29 @@ body {
   color: var(--cyan-glow);
   font-family: 'JetBrains Mono', monospace;
 }
+.voice-agent-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+  padding: 24px 32px;
+  flex: 1;
+  overflow: hidden;
+}
 
+.dialer-card-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 
+.dialer-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.transcript-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}

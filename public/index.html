@@ -50,165 +50,141 @@
 
     <!-- Page Content -->
     <div class="page-main">
-      <div class="app-container">
-        <!-- Left: Voice Console -->
-        <section class="console-panel">
-          <header class="panel-header">
-            <div class="brand">
-              <div class="logo-mark"><i class="fa-solid fa-microphone-lines"></i></div>
-              <div>
-                <h1>Voice Agent</h1>
-                <p class="subtitle">GPT-Realtime-2 WebRTC</p>
-              </div>
+      <div class="app-container" style="flex-direction: column;">
+        <!-- Page Header -->
+        <header class="page-header">
+          <div class="brand">
+            <div class="logo-mark" style="background: linear-gradient(135deg, var(--violet-glow), var(--violet-muted)); box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);">
+              <i class="fa-solid fa-phone-volume"></i>
             </div>
-            <div id="status-badge" class="status-indicator status-idle">
-              <span class="status-dot"></span>
-              <span id="status-text">OFF-LINE</span>
-            </div>
-          </header>
-
-          <!-- Dialer Keypad -->
-          <div class="dialer-container">
-            <div class="dialer-display-wrap">
-              <span id="voice-orb" class="voice-orb orb-idle dialer-status-dot"></span>
-              <input type="text" id="dialer-number" class="dialer-display-input" value="+358 40 123 4567" readonly />
-              <button id="btn-backspace" class="btn-backspace" onclick="backspaceDigit()"><i class="fa-solid fa-delete-left"></i></button>
-            </div>
-
-            <!-- Visualizer Bars embedded in Dialer -->
-            <div class="dialer-visualizer">
-              <div class="vis-bar">
-                <span>MIC IN</span>
-                <div class="bar-bg"><div id="bar-in-fill" class="bar-fill"></div></div>
-              </div>
-              <div class="vis-bar">
-                <span>AGENT OUT</span>
-                <div class="bar-bg"><div id="bar-out-fill" class="bar-fill"></div></div>
-              </div>
-            </div>
-
-            <!-- Keypad Grid -->
-            <div class="keypad-grid">
-              <button class="keypad-btn" onclick="pressDigit('1')">
-                <span class="btn-num">1</span>
-                <span class="btn-letters">&nbsp;</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('2')">
-                <span class="btn-num">2</span>
-                <span class="btn-letters">ABC</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('3')">
-                <span class="btn-num">3</span>
-                <span class="btn-letters">DEF</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('4')">
-                <span class="btn-num">4</span>
-                <span class="btn-letters">GHI</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('5')">
-                <span class="btn-num">5</span>
-                <span class="btn-letters">JKL</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('6')">
-                <span class="btn-num">6</span>
-                <span class="btn-letters">MNO</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('7')">
-                <span class="btn-num">7</span>
-                <span class="btn-letters">PQRS</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('8')">
-                <span class="btn-num">8</span>
-                <span class="btn-letters">TUV</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('9')">
-                <span class="btn-num">9</span>
-                <span class="btn-letters">WXYZ</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('*')">
-                <span class="btn-num">*</span>
-                <span class="btn-letters">&nbsp;</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('0')">
-                <span class="btn-num">0</span>
-                <span class="btn-letters">+</span>
-              </button>
-              <button class="keypad-btn" onclick="pressDigit('#')">
-                <span class="btn-num">#</span>
-                <span class="btn-letters">&nbsp;</span>
-              </button>
-            </div>
-
-            <!-- Dialer controls -->
-            <div class="dialer-controls-row">
-              <button id="btn-call" class="btn btn-call-action btn-call-primary" onclick="toggleCall()">
-                <i class="fa-solid fa-phone"></i>
-                <span id="btn-call-text">Start Call</span>
-              </button>
-              <button id="btn-mute" class="btn btn-call-action btn-call-secondary" disabled onclick="toggleMute()">
-                <i class="fa-solid fa-microphone-slash"></i>
-                <span>Mute</span>
-              </button>
-            </div>
-            
-            <div class="dialer-meta">
-              <div class="meta-item">
-                <span class="label">Caller ID:</span>
-                <span class="valueHighlight" id="dialer-caller-id">+358 40 123 4567</span>
-              </div>
-              <div class="meta-item">
-                <span class="label">Model:</span>
-                <span class="value">gpt-realtime-2</span>
-              </div>
+            <div>
+              <h1>Voice Agent Console</h1>
+              <p class="subtitle">Real-time GPT-Realtime-2 WebRTC calling panel</p>
             </div>
           </div>
-
-          <div class="transcript-card">
-            <h3 class="card-title"><i class="fa-solid fa-comment-dots"></i> Live Transcript</h3>
-            <div id="transcript-feed" class="transcript-feed">
-              <div class="transcript-placeholder">
-                <i class="fa-solid fa-volume-high"></i>
-                <p>Start a call to speak with the agent. Transcript streams here in real-time.</p>
-              </div>
-            </div>
+          <div id="status-badge" class="status-indicator status-idle">
+            <span class="status-dot"></span>
+            <span id="status-text">OFF-LINE</span>
           </div>
-        </section>
+        </header>
 
-        <div class="splitter" id="splitter-console-erp"></div>
-
-        <!-- Right: Live Work Orders -->
-        <main class="erp-panel">
-          <header class="panel-header border-bottom">
-            <div class="brand">
-              <div class="logo-mark erp-logo"><i class="fa-solid fa-network-wired"></i></div>
-              <div>
-                <h2>MaintTrac™ ERP</h2>
-                <p class="subtitle">Live Work Orders</p>
-              </div>
-            </div>
-            <div class="erp-sync-status">
-              <span class="pulse-green"></span>
-              <span>SYSTEM ONLINE</span>
-            </div>
-          </header>
-
-          <div class="erp-grid">
-            <div class="erp-main-board" style="padding-left: 0;">
-              <div class="erp-card main-board-card">
-                <div class="board-header">
-                  <h3 class="erp-card-title"><i class="fa-solid fa-receipt"></i> Active Work Orders</h3>
-                  <span id="wo-count" class="badge-count">0 Active</span>
+        <!-- Main Calling Console Layout -->
+        <div class="voice-agent-layout">
+          <!-- Left: Phone Dialer Card -->
+          <div class="dialer-card-panel">
+            <div class="erp-card dialer-card">
+              <h3 class="erp-card-title"><i class="fa-solid fa-phone"></i> Resident Dialer</h3>
+              
+              <div class="dialer-container" style="padding: 10px 0;">
+                <div class="dialer-display-wrap">
+                  <span id="voice-orb" class="voice-orb orb-idle dialer-status-dot"></span>
+                  <input type="text" id="dialer-number" class="dialer-display-input" value="+358 40 123 4567" readonly />
+                  <button id="btn-backspace" class="btn-backspace" onclick="backspaceDigit()"><i class="fa-solid fa-delete-left"></i></button>
                 </div>
-                <div id="work-orders-board" class="work-orders-board">
-                  <div class="loading-placeholder">
-                    <i class="fa-solid fa-circle-notch fa-spin"></i>
-                    <p>Loading work orders...</p>
+
+                <!-- Visualizer Bars embedded in Dialer -->
+                <div class="dialer-visualizer">
+                  <div class="vis-bar">
+                    <span>MIC IN</span>
+                    <div class="bar-bg"><div id="bar-in-fill" class="bar-fill"></div></div>
+                  </div>
+                  <div class="vis-bar">
+                    <span>AGENT OUT</span>
+                    <div class="bar-bg"><div id="bar-out-fill" class="bar-fill"></div></div>
+                  </div>
+                </div>
+
+                <!-- Keypad Grid -->
+                <div class="keypad-grid">
+                  <button class="keypad-btn" onclick="pressDigit('1')">
+                    <span class="btn-num">1</span>
+                    <span class="btn-letters">&nbsp;</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('2')">
+                    <span class="btn-num">2</span>
+                    <span class="btn-letters">ABC</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('3')">
+                    <span class="btn-num">3</span>
+                    <span class="btn-letters">DEF</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('4')">
+                    <span class="btn-num">4</span>
+                    <span class="btn-letters">GHI</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('5')">
+                    <span class="btn-num">5</span>
+                    <span class="btn-letters">JKL</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('6')">
+                    <span class="btn-num">6</span>
+                    <span class="btn-letters">MNO</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('7')">
+                    <span class="btn-num">7</span>
+                    <span class="btn-letters">PQRS</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('8')">
+                    <span class="btn-num">8</span>
+                    <span class="btn-letters">TUV</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('9')">
+                    <span class="btn-num">9</span>
+                    <span class="btn-letters">WXYZ</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('*')">
+                    <span class="btn-num">*</span>
+                    <span class="btn-letters">&nbsp;</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('0')">
+                    <span class="btn-num">0</span>
+                    <span class="btn-letters">+</span>
+                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('#')">
+                    <span class="btn-num">#</span>
+                    <span class="btn-letters">&nbsp;</span>
+                  </button>
+                </div>
+
+                <!-- Dialer controls -->
+                <div class="dialer-controls-row">
+                  <button id="btn-call" class="btn btn-call-action btn-call-primary" onclick="toggleCall()">
+                    <i class="fa-solid fa-phone"></i>
+                    <span id="btn-call-text">Start Call</span>
+                  </button>
+                  <button id="btn-mute" class="btn btn-call-action btn-call-secondary" disabled onclick="toggleMute()">
+                    <i class="fa-solid fa-microphone-slash"></i>
+                    <span>Mute</span>
+                  </button>
+                </div>
+                
+                <div class="dialer-meta">
+                  <div class="meta-item">
+                    <span class="label">Caller ID:</span>
+                    <span class="valueHighlight" id="dialer-caller-id">+358 40 123 4567</span>
+                  </div>
+                  <div class="meta-item">
+                    <span class="label">Model:</span>
+                    <span class="value">gpt-realtime-2</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </main>
+
+          <!-- Right: Live Transcript Card -->
+          <div class="transcript-panel">
+            <div class="erp-card scrollable-card" style="height: 100%; display: flex; flex-direction: column;">
+              <h3 class="erp-card-title"><i class="fa-solid fa-comment-dots"></i> Live Transcript Feed</h3>
+              <div id="transcript-feed" class="transcript-feed" style="flex: 1; overflow-y: auto; margin-top: 10px;">
+                <div class="transcript-placeholder">
+                  <i class="fa-solid fa-volume-high"></i>
+                  <p>Dial a resident phone number and click 'Start Call' to speak with the automated maintenance agent. Live transcripts will stream here in real-time.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>

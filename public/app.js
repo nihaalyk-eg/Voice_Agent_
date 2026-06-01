@@ -840,8 +840,13 @@ async function startCall() {
     voiceOrb.className = 'voice-orb orb-connecting dialer-status-dot';
     addLogMessage('Initiating connection to OpenAI Realtime...', 'info');
 
-    // 2. Fetch Ephemeral client token from backend
-    const sessionRes = await authFetch('/api/session', { method: 'POST' });
+    // 2. Fetch Ephemeral client token from backend passing caller phone number
+    const dialedNumber = document.getElementById('dialer-number').value || '+358 40 123 4567';
+    const sessionRes = await authFetch('/api/session', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caller_phone_number: dialedNumber })
+    });
     if (!sessionRes.ok) {
       const errData = await sessionRes.json();
       throw new Error(errData.error || 'Failed to fetch session token');

@@ -513,13 +513,51 @@ app.post('/api/session', async (req, res) => {
     });
   }
 
+  // Look up caller details to inject context dynamically
+  const callerPhone = req.body.caller_phone_number || '+358 40 123 4567';
+  let customerContext = '';
+  
+  try {
+    const custRes = await db.query('SELECT * FROM customers WHERE phone_number = $1', [callerPhone]);
+    if (custRes.rows.length > 0) {
+      const c = custRes.rows[0];
+      customerContext = `
+DURABLY IDENTIFIED RESIDENT (DATABASE RECORD MATCHED):
+- Name: ${c.full_name}
+- Phone: ${c.phone_number}
+- Email: ${c.email || 'None'}
+- Property Address: ${c.property_address}
+- Unit/Apartment: ${c.apartment_number || 'N/A'}
+- Language Preference: ${c.language_preference}
+- Important Profile Notes: ${c.notes || 'None'}
+
+Verify their identity at the start of the call (e.g. "Good morning Matti! I see you are calling from Mannerheimintie 10, apartment A3 - is that correct?"). Skip asking for their address/apartment since they are verified. Auto-populate all work orders with these exact details.
+`;
+    } else {
+      customerContext = `
+UNKNOWN CALLER CONTEXT:
+- Phone: ${callerPhone}
+Greet the customer and proactively ask for their name, street address, and apartment number. Use the 'get_maintenance_person' tool once you have their address.
+`;
+    }
+  } catch (err) {
+    console.error('Error compiling customer context for session:', err);
+    customerContext = `
+LOOKUP FAILURE / UNKNOWN CALLER:
+- Phone: ${callerPhone}
+Proceed with standard unknown resident greeting.
+`;
+  }
+
   // ============================================================
   // ENHANCED Agent System Instructions — Full Easoft Workflow
   // ============================================================
   const systemInstructions = `
 Your name is 'Kiinteistö-Agent' (Property Assistant), an efficient, highly proactive, friendly, and professional voice agent for Property Maintenance. You receive incoming calls, guide the caller step-by-step, and process maintenance work orders.
 
-The caller's phone number is '+358 40 123 4567'. Use this automatically for work order creation and confirmations unless they explicitly ask you to use a different phone number.
+The caller's phone number is '${callerPhone}'. Use this automatically for work order creation and confirmations unless they explicitly ask you to use a different phone number.
+
+${customerContext}
 
 PROACTIVE GUIDANCE PRINCIPLE:
 Be extremely proactive. Do not wait for the caller to guess what to do next. Guide them through each step clearly. Keep responses short — this is a voice call.
