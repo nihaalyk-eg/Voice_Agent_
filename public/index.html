@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Voice Agent — Kiinteistö-Agent</title>
+  <title>Zora — Voice Agent</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -26,23 +26,33 @@
     <!-- Sidebar Nav -->
     <aside class="sidebar-nav">
       <div class="sidebar-brand">
-        <div class="logo-mark"><i class="fa-solid fa-microphone-lines"></i></div>
-        <span class="sidebar-brand-text">Kiinteistö</span>
+        <div class="logo-mark zora-logo"><i class="fa-solid fa-bolt"></i></div>
+        <span class="sidebar-brand-text zora-wordmark">Zora</span>
       </div>
       <nav class="sidebar-links">
         <a href="/" class="sidebar-link active"><i class="fa-solid fa-phone-volume"></i><span>Voice Agent</span></a>
-        <a href="/work-orders.html" class="sidebar-link"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
-        <a href="/email.html" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
-        <a href="/communications.html" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
-        <a href="/customers.html" class="sidebar-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-        <a href="/observability.html" class="sidebar-link"><i class="fa-solid fa-chart-line"></i><span>Observability</span></a>
+        <a href="/email" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
+        <!-- Admin Accordion Group -->
+        <div class="sidebar-group">
+          <button class="sidebar-group-trigger" id="admin-group-trigger" onclick="toggleAdminGroup()">
+            <i class="fa-solid fa-shield-halved group-icon"></i>
+            <span>Admin</span>
+            <i class="fa-solid fa-chevron-down sidebar-group-chevron"></i>
+          </button>
+          <div class="sidebar-sub-links" id="admin-sub-links">
+            <a href="/communications" class="sidebar-sub-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
+            <a href="/customers" class="sidebar-sub-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+            <a href="/work-orders" class="sidebar-sub-link"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
+          </div>
+        </div>
+        <a href="/observability" class="sidebar-link"><i class="fa-solid fa-chart-line"></i><span>Observability</span></a>
       </nav>
       <div class="sidebar-footer">
         <div class="sidebar-user">
           <div class="sidebar-user-avatar" id="sidebar-user-avatar">?</div>
           <div class="sidebar-user-info">
             <div class="sidebar-user-name" id="sidebar-user-name">Loading...</div>
-            <div class="sidebar-user-role">Operator</div>
+            <div class="sidebar-user-role">Zora Agent</div>
           </div>
         </div>
         <button class="btn-sidebar-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
@@ -60,7 +70,7 @@
             </div>
             <div>
               <h1>Voice Agent Console</h1>
-              <p class="subtitle">Real-time GPT-Realtime-2 WebRTC calling panel</p>
+              <p class="subtitle">Zora — Real-time AI voice agent powered by GPT-4o Realtime</p>
             </div>
           </div>
           <div id="status-badge" class="status-indicator status-idle">
@@ -73,7 +83,7 @@
         <div class="voice-agent-layout">
           <!-- Left: Phone Dialer Card & Live Cost HUD -->
           <div class="dialer-card-panel" style="display: flex; flex-direction: column; gap: 24px; height: 100%;">
-            <div class="erp-card dialer-card" style="flex: 1.6; display: flex; flex-direction: column; min-height: 460px;">
+            <div class="erp-card dialer-card" style="flex: 1.6; display: flex; flex-direction: column;">
               <h3 class="erp-card-title" style="margin-bottom: 8px;"><i class="fa-solid fa-phone"></i> Resident Dialer</h3>
               
               <div class="dialer-container" style="padding: 5px 0; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
@@ -159,6 +169,19 @@
                   </button>
                 </div>
 
+                <!-- Voice type selector -->
+                <div class="voice-selector-row">
+                  <span class="voice-selector-label"><i class="fa-solid fa-waveform-lines"></i> Voice</span>
+                  <div class="voice-options" id="voice-options">
+                    <button class="voice-btn active" data-voice="shimmer" onclick="selectVoice(this)">Shimmer</button>
+                    <button class="voice-btn" data-voice="alloy"   onclick="selectVoice(this)">Alloy</button>
+                    <button class="voice-btn" data-voice="coral"   onclick="selectVoice(this)">Coral</button>
+                    <button class="voice-btn" data-voice="sage"    onclick="selectVoice(this)">Sage</button>
+                    <button class="voice-btn" data-voice="ash"     onclick="selectVoice(this)">Ash</button>
+                    <button class="voice-btn" data-voice="echo"    onclick="selectVoice(this)">Echo</button>
+                  </div>
+                </div>
+
                 <!-- Dialer controls -->
                 <div class="dialer-controls-row">
                   <button id="btn-call" class="btn btn-call-action btn-call-primary" onclick="toggleCall()">
@@ -175,45 +198,6 @@
                   <div class="meta-item">
                     <span class="label">Model:</span>
                     <span class="value">gpt-realtime-2</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- New Live Cost Tracking HUD Card -->
-            <div class="erp-card cost-tracker-card" style="flex: 0 0 auto; display: flex; flex-direction: column; min-height: 120px; padding: 16px 20px;">
-              <h3 class="erp-card-title" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
-                <span><i class="fa-solid fa-microchip"></i> Live Usage & Cost Tracking</span>
-                <span class="badge-source source-voice" style="font-size: 9px; padding: 2px 6px; border-radius: 9px; background: rgba(6, 182, 212, 0.1); color: var(--cyan-glow); border: 1px solid rgba(6, 182, 212, 0.2);">REAL-TIME</span>
-              </h3>
-              
-              <div class="cost-summary-layout" style="display: flex; gap: 20px; align-items: center; justify-content: space-between; flex: 1; padding: 2px 0;">
-                <div class="cost-counter-wrap" style="flex: 1;">
-                  <span style="font-size: 9.5px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Accrued Call Cost</span>
-                  <div id="live-session-cost" class="cost-currency" style="font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 800; color: var(--cyan-glow); text-shadow: 0 0 10px rgba(6, 182, 212, 0.4); margin-top: 4px; transition: all 0.3s ease;">
-                    $0.00000
-                  </div>
-                </div>
-                
-                <div class="cost-meters-grid" style="flex: 1.2; display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
-                  <div class="cost-metric-bar">
-                    <div style="display: flex; justify-content: space-between; color: var(--text-secondary); font-weight: 700; margin-bottom: 3px;">
-                      <span>Total Text In/Out</span>
-                      <span id="cost-text-tokens" style="font-family: 'JetBrains Mono', monospace;">0 tkn</span>
-                    </div>
-                    <div class="bar-bg" style="height: 6px; border-radius: 3px; background: rgba(255,255,255,0.03); overflow: hidden;">
-                      <div id="bar-cost-text-tokens" class="bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--violet-muted), var(--violet-glow)); height: 100%; transition: width 0.4s ease;"></div>
-                    </div>
-                  </div>
-                  
-                  <div class="cost-metric-bar">
-                    <div style="display: flex; justify-content: space-between; color: var(--text-secondary); font-weight: 700; margin-bottom: 3px;">
-                      <span>Total Audio In/Out</span>
-                      <span id="cost-audio-tokens" style="font-family: 'JetBrains Mono', monospace;">0 tkn</span>
-                    </div>
-                    <div class="bar-bg" style="height: 6px; border-radius: 3px; background: rgba(255,255,255,0.03); overflow: hidden;">
-                      <div id="bar-cost-audio-tokens" class="bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--cyan-muted), var(--cyan-glow)); height: 100%; transition: width 0.4s ease;"></div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -270,6 +254,22 @@
   <audio id="remote-audio" autoplay></audio>
   <script src="https://egauth.cto.aks.egdev.eu/js/keycloak.js"></script>
   <script src="shared.js"></script>
+  <script>
+    function toggleAdminGroup() {
+      const trigger = document.getElementById('admin-group-trigger');
+      const subLinks = document.getElementById('admin-sub-links');
+      trigger.classList.toggle('open');
+      subLinks.classList.toggle('open');
+    }
+    // Auto-open if any sub-link is active
+    document.addEventListener('DOMContentLoaded', function() {
+      const activeSubLink = document.querySelector('.sidebar-sub-link.active');
+      if (activeSubLink) {
+        document.getElementById('admin-group-trigger').classList.add('open', 'active');
+        document.getElementById('admin-sub-links').classList.add('open');
+      }
+    });
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

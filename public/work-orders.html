@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Work Orders — Kiinteistö-Agent</title>
+  <title>Zora — Work Orders</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -17,23 +17,32 @@
   <div class="app-layout">
     <aside class="sidebar-nav">
       <div class="sidebar-brand">
-        <div class="logo-mark"><i class="fa-solid fa-microphone-lines"></i></div>
-        <span class="sidebar-brand-text">Kiinteistö</span>
+        <div class="logo-mark zora-logo"><i class="fa-solid fa-bolt"></i></div>
+        <span class="sidebar-brand-text zora-wordmark">Zora</span>
       </div>
       <nav class="sidebar-links">
         <a href="/" class="sidebar-link"><i class="fa-solid fa-phone-volume"></i><span>Voice Agent</span></a>
-        <a href="/work-orders.html" class="sidebar-link active"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
-        <a href="/email.html" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
-        <a href="/communications.html" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
-        <a href="/customers.html" class="sidebar-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-        <a href="/observability.html" class="sidebar-link"><i class="fa-solid fa-chart-line"></i><span>Observability</span></a>
+        <a href="/email" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
+        <div class="sidebar-group">
+          <button class="sidebar-group-trigger active open" id="admin-group-trigger" onclick="toggleAdminGroup()">
+            <i class="fa-solid fa-shield-halved group-icon"></i>
+            <span>Admin</span>
+            <i class="fa-solid fa-chevron-down sidebar-group-chevron"></i>
+          </button>
+          <div class="sidebar-sub-links open" id="admin-sub-links">
+            <a href="/communications" class="sidebar-sub-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
+            <a href="/customers" class="sidebar-sub-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+            <a href="/work-orders" class="sidebar-sub-link active"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
+          </div>
+        </div>
+        <a href="/observability" class="sidebar-link"><i class="fa-solid fa-chart-line"></i><span>Observability</span></a>
       </nav>
       <div class="sidebar-footer">
         <div class="sidebar-user">
           <div class="sidebar-user-avatar" id="sidebar-user-avatar">?</div>
           <div class="sidebar-user-info">
             <div class="sidebar-user-name" id="sidebar-user-name">Loading...</div>
-            <div class="sidebar-user-role">Operator</div>
+            <div class="sidebar-user-role">Zora Agent</div>
           </div>
         </div>
         <button class="btn-sidebar-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
@@ -99,6 +108,13 @@
 
   <script src="https://egauth.cto.aks.egdev.eu/js/keycloak.js"></script>
   <script src="shared.js"></script>
+  <script>
+    function toggleAdminGroup() {
+      const t = document.getElementById('admin-group-trigger');
+      const s = document.getElementById('admin-sub-links');
+      t.classList.toggle('open'); s.classList.toggle('open');
+    }
+  </script>
   <script src="work-orders.js"></script>
 </body>
 </html>

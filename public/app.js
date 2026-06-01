@@ -13,6 +13,26 @@ let callTranscriptAccumulator = [];
 let callStartTime = null;
 let callPersisted = false;
 
+// Interruption recovery & auto hang-up state
+let wasInterrupted = false;
+let lastAgentFragment = '';
+let autoHangupTimer = null;
+let lastShownAgentItemId = null; // dedup guard for dual transcript events
+let endCallAfterSpeech = false;  // set by end_call tool; hangup fires after agent finishes speaking
+
+// Long-session harness
+let kcRefreshInterval = null;     // keep Keycloak token fresh during call
+let sessionWarnTimer = null;      // 20-min operator warning
+let sessionHardLimitTimer = null; // 45-min hard stop (ephemeral token lifetime)
+const MAX_TRANSCRIPT_ITEMS = 300; // cap accumulator to prevent memory bloat
+
+function pushTranscript(role, text) {
+  callTranscriptAccumulator.push({ role, text });
+  if (callTranscriptAccumulator.length > MAX_TRANSCRIPT_ITEMS) {
+    callTranscriptAccumulator = callTranscriptAccumulator.slice(-200);
+  }
+}
+
 // Mock databases loaded from backend
 let properties = [];
 let workOrders = [];
@@ -1133,10 +1153,12 @@ async function startCall() {
 
     // 2. Fetch Ephemeral client token from backend passing caller phone number
     const dialedNumber = document.getElementById('dialer-number').value || '+358 40 123 4567';
-    const sessionRes = await authFetch('/api/session', { 
+    const activeVoiceBtn = document.querySelector('.voice-btn.active');
+    const selectedVoice = activeVoiceBtn?.dataset?.voice || 'shimmer';
+    const sessionRes = await authFetch('/api/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caller_phone_number: dialedNumber })
+      body: JSON.stringify({ caller_phone_number: dialedNumber, voice: selectedVoice })
     });
     if (!sessionRes.ok) {
       const errData = await sessionRes.json();
@@ -1166,6 +1188,7 @@ async function startCall() {
     
     // Set up Data Channel listeners
     dataChannel.onopen = () => {
+      startSessionHarness();
       addLogMessage('Voice channel opened! Speak to the agent.', 'success');
       setCallStatus('connected', 'CALL ACTIVE');
       btnCall.disabled = false;
@@ -1238,6 +1261,56 @@ async function startCall() {
   }
 }
 
+// ==========================================================================
+// Long-Session Harness
+// ==========================================================================
+function startSessionHarness() {
+  // 1. Refresh Keycloak token every 2 min so authFetch never fails mid-call
+  kcRefreshInterval = setInterval(async () => {
+    try { await kc.updateToken(60); }
+    catch (e) { console.warn('[Harness] Keycloak refresh failed:', e); }
+  }, 120_000);
+
+  // 2. ICE connection monitoring — restart on transient drop, hard-stop on failure
+  pc.oniceconnectionstatechange = () => {
+    const state = pc.iceConnectionState;
+    console.log('[ICE]', state);
+    if (state === 'disconnected') {
+      addLogMessage('Connection interrupted — attempting to restore...', 'info');
+      pc.restartIce?.();
+    }
+    if (state === 'failed') {
+      addLogMessage('Connection failed. Ending call.', 'error');
+      hangUp();
+    }
+  };
+
+  // 3. Data channel health
+  dataChannel.onerror = (e) => {
+    addLogMessage(`Data channel error: ${e?.error?.message || 'unknown'}`, 'error');
+  };
+
+  // 4. 20-minute operator warning
+  sessionWarnTimer = setTimeout(() => {
+    addLogMessage('Session is 20 minutes long — consider wrapping up soon.', 'info');
+  }, 20 * 60_000);
+
+  // 5. 45-minute hard stop (Azure ephemeral tokens expire)
+  sessionHardLimitTimer = setTimeout(() => {
+    addLogMessage('Session limit reached (45 min). Ending call automatically.', 'error');
+    hangUp();
+  }, 45 * 60_000);
+}
+
+function stopSessionHarness() {
+  clearInterval(kcRefreshInterval);
+  clearTimeout(sessionWarnTimer);
+  clearTimeout(sessionHardLimitTimer);
+  kcRefreshInterval = null;
+  sessionWarnTimer = null;
+  sessionHardLimitTimer = null;
+}
+
 function hangUp() {
   addLogMessage('Call ended by user.', 'info');
   
@@ -1307,6 +1380,14 @@ function cleanupCall() {
 
   currentAgentBubbleText = null;
   callStartTime = null;
+  wasInterrupted = false;
+  lastShownAgentItemId = null;
+  endCallAfterSpeech = false;
+  stopSessionHarness();
+  if (autoHangupTimer) {
+    clearTimeout(autoHangupTimer);
+    autoHangupTimer = null;
+  }
 
   // Reset visual levels
   barInFill.style.width = '0%';
@@ -1342,34 +1423,57 @@ function handleRealtimeEvent(event) {
     addLogMessage(`Session Error: ${event.error?.message || 'Unknown error'}`, 'error');
   }
 
-  // 1. Capture User Audio Transcripts
-  if (event.type === 'conversation.item.input_audio_transcription.completed') {
-    const transcript = event.transcript || '';
-    if (transcript.trim()) {
-      appendTranscriptBubble('user', transcript);
-      // Accumulate for persistence
-      callTranscriptAccumulator.push({ role: 'user', text: transcript.trim() });
-    }
+  // 0. Track user interruptions — fires when mic detects speech while agent is speaking
+  if (event.type === 'input_audio_buffer.speech_started') {
+    wasInterrupted = true;
+    lastAgentFragment = currentAgentBubbleText?.textContent || '';
   }
 
-  // 2. Capture Agent Verbal Responses (Streaming & Done)
-  if (event.type === 'response.audio_transcript.delta') {
+  // 1. Capture User Audio Transcripts
+  if (event.type === 'conversation.item.input_audio_transcription.completed') {
+    const transcript = (event.transcript || '').trim();
+    if (transcript) {
+      appendTranscriptBubble('user', transcript);
+      pushTranscript('user', transcript);
+    }
+
+    wasInterrupted = false;
+
+  }
+
+  // 2. Capture Agent Verbal Responses
+  // Azure gpt-realtime-2 uses 'response.output_audio_transcript.*'
+  // Standard OpenAI uses 'response.audio_transcript.*' — handle both
+  if (event.type === 'response.audio_transcript.delta' ||
+      event.type === 'response.output_audio_transcript.delta') {
     const delta = event.delta || '';
     if (delta.trim() || currentAgentBubbleText) {
       appendOrUpdateAgentTranscript(delta);
     }
   }
 
-  if (event.type === 'response.audio_transcript.done') {
+  if (event.type === 'response.audio_transcript.done' ||
+      event.type === 'response.output_audio_transcript.done') {
+    // Dedup: both event types can fire for the same item — only show the first one
+    const itemId = event.item_id || event.response_id || '';
+    if (itemId && itemId === lastShownAgentItemId) return;
+    if (itemId) lastShownAgentItemId = itemId;
+
     const transcript = event.transcript || '';
     finalizeAgentTranscript(transcript);
-    // Accumulate for persistence
     if (transcript.trim()) {
-      callTranscriptAccumulator.push({ role: 'agent', text: transcript.trim() });
+      pushTranscript('agent', transcript.trim());
+    }
+
+    // Hang up only after the agent has finished speaking its farewell
+    if (endCallAfterSpeech) {
+      endCallAfterSpeech = false;
+      if (autoHangupTimer) clearTimeout(autoHangupTimer);
+      autoHangupTimer = setTimeout(() => { if (pc) hangUp(); }, 800);
     }
   }
 
-  // 3. Handle Tool Calls & Cost Calculation
+  // 3. Handle Tool Calls & Cost Calculation + Agent Transcript fallback via response.done
   if (event.type === 'response.done') {
     const usage = event.response?.usage;
     if (usage) {
@@ -1385,10 +1489,10 @@ function handleRealtimeEvent(event) {
         } catch (e) {
           console.error('Failed to parse arguments JSON string:', e);
         }
-        
         addLogMessage(`Model requested tool: ${name}()`, 'info');
         executeTool(name, call_id, args);
       }
+
     }
   }
 }
@@ -1616,6 +1720,12 @@ async function executeTool(name, call_id, args) {
       addLogMessage(`[Comms] Call transcript saved with summary.`, 'success');
     }
 
+    else if (name === 'end_call') {
+      addLogMessage('Agent ending call after farewell...', 'info');
+      output = { success: true, message: 'Noted. Deliver your farewell now, then the call will disconnect.' };
+      endCallAfterSpeech = true;
+    }
+
   } catch (err) {
     console.error(`Error executing tool ${name}:`, err);
     output = { success: false, error: err.message };
@@ -1776,10 +1886,17 @@ function appendOrUpdateAgentTranscript(delta) {
 }
 
 function finalizeAgentTranscript(transcript) {
-  if (currentAgentBubbleText && transcript) {
+  if (!transcript?.trim()) {
+    currentAgentBubbleText = null;
+    return;
+  }
+  if (!currentAgentBubbleText) {
+    // No streaming delta arrived (e.g. Azure sends done before deltas) — create bubble directly
+    appendTranscriptBubble('agent', transcript);
+  } else {
     currentAgentBubbleText.textContent = transcript;
   }
-  currentAgentBubbleText = null; // Clear reference for the next response
+  currentAgentBubbleText = null;
   transcriptFeed.scrollTop = transcriptFeed.scrollHeight;
 }
 
@@ -1815,6 +1932,12 @@ btnMute.addEventListener('click', () => {
 });
 
 // ==========================================================================
+// Voice selector
+function selectVoice(btn) {
+  document.querySelectorAll('.voice-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
 // Phone Dialer & Keypad Handlers (Premium DTMF Features)
 // ==========================================================================
 function pressDigit(digit) {
