@@ -304,6 +304,16 @@ body {
   transition: var(--transition-normal);
 }
 
+.orb-core i {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  line-height: 1;
+  margin: 0;
+  padding: 0;
+  transform: translateY(-2px);
+}
+
 .orb-wave {
   position: absolute;
   border-radius: 50%;

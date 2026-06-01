@@ -26,6 +26,7 @@ let activeCommsFilter = 'all';
 // Dynamic HUD Context Builder State & Logic
 // ==========================================================================
 let liveContext = {
+  active: false,
   residentName: null,
   phone: null,
   propertyAddress: null,
@@ -38,8 +39,9 @@ let liveContext = {
   ticketStatus: null
 };
 
-function resetLiveContext() {
+function resetLiveContext(active = false) {
   liveContext = {
+    active: active,
     residentName: null,
     phone: document.getElementById('dialer-number')?.value || '+358 40 123 4567',
     propertyAddress: null,
@@ -55,7 +57,7 @@ function resetLiveContext() {
 }
 
 function resetLiveContextManual() {
-  resetLiveContext();
+  resetLiveContext(false);
 
   // Reset transcript feed to placeholder
   const feed = document.getElementById('transcript-feed');
@@ -93,7 +95,35 @@ function resetLiveContextManual() {
 
 function renderLiveContextTable() {
   const tbody = document.getElementById('context-table-body');
-  if (!tbody) return;
+  const wrapper = document.querySelector('.context-table-wrapper');
+  if (!tbody || !wrapper) return;
+
+  // Render placeholder if context is inactive
+  if (!liveContext.active) {
+    const table = wrapper.querySelector('.context-table');
+    if (table) table.style.display = 'none';
+
+    let placeholder = wrapper.querySelector('.context-placeholder');
+    if (!placeholder) {
+      placeholder = document.createElement('div');
+      placeholder.className = 'context-placeholder';
+      placeholder.style.cssText = 'height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 40px 20px; color: var(--text-muted);';
+      placeholder.innerHTML = `
+        <i class="fa-solid fa-satellite-dish" style="font-size: 28px; color: var(--violet-glow); margin-bottom: 12px; filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.4)); animation: pulse-glow 2s infinite ease-in-out;"></i>
+        <strong style="color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Awaiting Active Call</strong>
+        <p style="font-size: 11.5px; max-width: 280px; line-height: 1.5; opacity: 0.7;">Dial a resident number and click 'Start Call' to initialize the real-time AI context extractor HUD.</p>
+      `;
+      wrapper.appendChild(placeholder);
+    }
+    return;
+  }
+
+  // Active call: Show table, remove placeholder
+  const table = wrapper.querySelector('.context-table');
+  if (table) table.style.display = 'table';
+  
+  const placeholder = wrapper.querySelector('.context-placeholder');
+  if (placeholder) placeholder.remove();
 
   const fields = [
     {
