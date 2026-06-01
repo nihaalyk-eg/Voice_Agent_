@@ -99,13 +99,20 @@
                   </div>
                 </div>
 
-                <div class="dialer-display-wrap">
-                  <i class="fa-solid fa-phone-volume dialer-input-icon"></i>
-                  <input type="text" id="dialer-number" class="dialer-display-input" value="+358 40 123 4567" />
-                  <button id="btn-backspace" class="btn-backspace" onclick="backspaceDigit()"><i class="fa-solid fa-delete-left"></i></button>
+                <!-- Phone number + Start Call inline -->
+                <div class="dialer-input-row">
+                  <div class="dialer-display-wrap" style="flex:1;">
+                    <i class="fa-solid fa-phone-volume dialer-input-icon"></i>
+                    <input type="text" id="dialer-number" class="dialer-display-input" value="+358 40 123 4567" />
+                    <button id="btn-backspace" class="btn-backspace" onclick="backspaceDigit()"><i class="fa-solid fa-delete-left"></i></button>
+                  </div>
+                  <button id="btn-call" class="btn btn-call-action btn-call-primary" onclick="toggleCall()">
+                    <i class="fa-solid fa-phone"></i>
+                    <span id="btn-call-text">Start Call</span>
+                  </button>
                 </div>
 
-                <!-- Visualizer Bars embedded in Dialer -->
+                <!-- Visualizer Bars -->
                 <div class="dialer-visualizer" style="margin: 4px 0;">
                   <div class="vis-bar">
                     <span>MIC IN</span>
@@ -119,75 +126,33 @@
 
                 <!-- Keypad Grid -->
                 <div class="keypad-grid" style="gap: 10px;">
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('1')">
-                    <span class="btn-num">1</span>
-                    <span class="btn-letters">&nbsp;</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('2')">
-                    <span class="btn-num">2</span>
-                    <span class="btn-letters">ABC</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('3')">
-                    <span class="btn-num">3</span>
-                    <span class="btn-letters">DEF</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('4')">
-                    <span class="btn-num">4</span>
-                    <span class="btn-letters">GHI</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('5')">
-                    <span class="btn-num">5</span>
-                    <span class="btn-letters">JKL</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('6')">
-                    <span class="btn-num">6</span>
-                    <span class="btn-letters">MNO</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('7')">
-                    <span class="btn-num">7</span>
-                    <span class="btn-letters">PQRS</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('8')">
-                    <span class="btn-num">8</span>
-                    <span class="btn-letters">TUV</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('9')">
-                    <span class="btn-num">9</span>
-                    <span class="btn-letters">WXYZ</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('*')">
-                    <span class="btn-num">*</span>
-                    <span class="btn-letters">&nbsp;</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('0')">
-                    <span class="btn-num">0</span>
-                    <span class="btn-letters">+</span>
-                  </button>
-                  <button class="keypad-btn" style="height: 48px;" onclick="pressDigit('#')">
-                    <span class="btn-num">#</span>
-                    <span class="btn-letters">&nbsp;</span>
-                  </button>
+                  <button class="keypad-btn" onclick="pressDigit('1')"><span class="btn-num">1</span><span class="btn-letters">&nbsp;</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('2')"><span class="btn-num">2</span><span class="btn-letters">ABC</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('3')"><span class="btn-num">3</span><span class="btn-letters">DEF</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('4')"><span class="btn-num">4</span><span class="btn-letters">GHI</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('5')"><span class="btn-num">5</span><span class="btn-letters">JKL</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('6')"><span class="btn-num">6</span><span class="btn-letters">MNO</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('7')"><span class="btn-num">7</span><span class="btn-letters">PQRS</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('8')"><span class="btn-num">8</span><span class="btn-letters">TUV</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('9')"><span class="btn-num">9</span><span class="btn-letters">WXYZ</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('*')"><span class="btn-num">*</span><span class="btn-letters">&nbsp;</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('0')"><span class="btn-num">0</span><span class="btn-letters">+</span></button>
+                  <button class="keypad-btn" onclick="pressDigit('#')"><span class="btn-num">#</span><span class="btn-letters">&nbsp;</span></button>
                 </div>
 
-                <!-- Voice type selector -->
-                <div class="voice-selector-row">
-                  <span class="voice-selector-label"><i class="fa-solid fa-waveform-lines"></i> Voice</span>
-                  <div class="voice-options" id="voice-options">
-                    <button class="voice-btn active" data-voice="shimmer" onclick="selectVoice(this)">Shimmer</button>
-                    <button class="voice-btn" data-voice="alloy"   onclick="selectVoice(this)">Alloy</button>
-                    <button class="voice-btn" data-voice="coral"   onclick="selectVoice(this)">Coral</button>
-                    <button class="voice-btn" data-voice="sage"    onclick="selectVoice(this)">Sage</button>
-                    <button class="voice-btn" data-voice="ash"     onclick="selectVoice(this)">Ash</button>
-                    <button class="voice-btn" data-voice="echo"    onclick="selectVoice(this)">Echo</button>
+                <!-- Voice type + Mute row -->
+                <div class="dialer-bottom-row">
+                  <div class="voice-selector-row" style="flex:1;">
+                    <span class="voice-selector-label"><i class="fa-solid fa-waveform-lines"></i> Voice</span>
+                    <div class="voice-options" id="voice-options">
+                      <button class="voice-btn active" data-voice="shimmer" onclick="selectVoice(this)">Shimmer</button>
+                      <button class="voice-btn" data-voice="alloy"   onclick="selectVoice(this)">Alloy</button>
+                      <button class="voice-btn" data-voice="coral"   onclick="selectVoice(this)">Coral</button>
+                      <button class="voice-btn" data-voice="sage"    onclick="selectVoice(this)">Sage</button>
+                      <button class="voice-btn" data-voice="ash"     onclick="selectVoice(this)">Ash</button>
+                      <button class="voice-btn" data-voice="echo"    onclick="selectVoice(this)">Echo</button>
+                    </div>
                   </div>
-                </div>
-
-                <!-- Dialer controls -->
-                <div class="dialer-controls-row">
-                  <button id="btn-call" class="btn btn-call-action btn-call-primary" onclick="toggleCall()">
-                    <i class="fa-solid fa-phone"></i>
-                    <span id="btn-call-text">Start Call</span>
-                  </button>
                   <button id="btn-mute" class="btn btn-call-action btn-call-secondary" disabled onclick="toggleMute()">
                     <i class="fa-solid fa-microphone-slash"></i>
                     <span>Mute</span>

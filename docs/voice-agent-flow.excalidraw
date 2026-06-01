@@ -1,0 +1,98 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    {"id":"title1","type":"text","x":320,"y":20,"width":360,"height":36,"text":"Voice Agent — Technical Flow","fontSize":24,"fontFamily":1,"textAlign":"center","verticalAlign":"top","strokeColor":"#1e1e1e","fillStyle":"solid","roughness":0,"opacity":100},
+
+    {"id":"op1","type":"rectangle","x":300,"y":80,"width":400,"height":50,"strokeColor":"#1e6091","backgroundColor":"#d0ebff","fillStyle":"solid","roughness":0,"cornerRadius":8,"opacity":100},
+    {"id":"op1t","type":"text","x":310,"y":93,"width":380,"height":24,"text":"Operator enters phone number → clicks Start Call","fontSize":14,"fontFamily":1,"textAlign":"center","strokeColor":"#1e6091","fillStyle":"solid","roughness":0},
+
+    {"id":"a1","type":"arrow","x":500,"y":130,"width":2,"height":40,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,40]]},
+
+    {"id":"srv1","type":"rectangle","x":260,"y":170,"width":480,"height":90,"strokeColor":"#5c3317","backgroundColor":"#fff3bf","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"srv1t","type":"text","x":270,"y":183,"width":460,"height":64,"text":"POST /api/session\n→ SELECT customers WHERE phone = ?\n→ buildLanguageBlock(lang, isKnown)\n→ POST Azure /openai/v1/realtime/client_secrets","fontSize":13,"fontFamily":1,"textAlign":"left","strokeColor":"#5c3317","fillStyle":"solid","roughness":0},
+
+    {"id":"a2","type":"arrow","x":500,"y":260,"width":2,"height":40,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,40]]},
+
+    {"id":"rtc1","type":"rectangle","x":280,"y":300,"width":440,"height":70,"strokeColor":"#2b6cb0","backgroundColor":"#ebf8ff","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"rtc1t","type":"text","x":290,"y":313,"width":420,"height":44,"text":"WebRTC: RTCPeerConnection + SDP offer/answer\nData channel 'oai-events' opened","fontSize":13,"fontFamily":1,"textAlign":"center","strokeColor":"#2b6cb0","fillStyle":"solid","roughness":0},
+
+    {"id":"a3","type":"arrow","x":500,"y":370,"width":2,"height":40,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,40]]},
+
+    {"id":"init1","type":"rectangle","x":260,"y":410,"width":480,"height":70,"strokeColor":"#276749","backgroundColor":"#f0fff4","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"init1t","type":"text","x":270,"y":423,"width":460,"height":44,"text":"session.update → { instructions, tools, audio.input.transcription }\nresponse.create (trigger silent lookup)","fontSize":13,"fontFamily":1,"textAlign":"center","strokeColor":"#276749","fillStyle":"solid","roughness":0},
+
+    {"id":"a4","type":"arrow","x":500,"y":480,"width":2,"height":40,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,40]]},
+
+    {"id":"tool1","type":"rectangle","x":280,"y":520,"width":440,"height":60,"strokeColor":"#744210","backgroundColor":"#fffbeb","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"tool1t","type":"text","x":290,"y":535,"width":420,"height":30,"text":"TOOL: get_customer_profile(phone) — silent, no speech","fontSize":13,"fontFamily":1,"textAlign":"center","strokeColor":"#744210","fillStyle":"solid","roughness":0},
+
+    {"id":"a5","type":"arrow","x":500,"y":580,"width":2,"height":30,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,30]]},
+
+    {"id":"d1","type":"diamond","x":380,"y":610,"width":240,"height":80,"strokeColor":"#5c3317","backgroundColor":"#ffeeba","fillStyle":"solid","roughness":0},
+    {"id":"d1t","type":"text","x":390,"y":638,"width":220,"height":24,"text":"Customer found?","fontSize":14,"fontFamily":1,"textAlign":"center","strokeColor":"#5c3317","fillStyle":"solid","roughness":0},
+
+    {"id":"a6yes","type":"arrow","x":380,"y":650,"width":-140,"height":0,"strokeColor":"#276749","roughness":0,"points":[[0,0],[-140,0]],"label":{"text":"YES","fontSize":12,"fontFamily":1}},
+    {"id":"a6no","type":"arrow","x":620,"y":650,"width":140,"height":0,"strokeColor":"#c0392b","roughness":0,"points":[[0,0],[140,0]],"label":{"text":"NO","fontSize":12,"fontFamily":1}},
+
+    {"id":"found1","type":"rectangle","x":120,"y":620,"width":260,"height":60,"strokeColor":"#276749","backgroundColor":"#f0fff4","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"found1t","type":"text","x":130,"y":633,"width":240,"height":34,"text":"Greet by name\nget_maintenance_person (silent)","fontSize":12,"fontFamily":1,"textAlign":"center","strokeColor":"#276749","fillStyle":"solid","roughness":0},
+
+    {"id":"notfound1","type":"rectangle","x":620,"y":620,"width":220,"height":60,"strokeColor":"#c0392b","backgroundColor":"#fff5f5","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"notfound1t","type":"text","x":630,"y":640,"width":200,"height":20,"text":"Ask name, address, apartment","fontSize":12,"fontFamily":1,"textAlign":"center","strokeColor":"#c0392b","fillStyle":"solid","roughness":0},
+
+    {"id":"ajoin","type":"arrow","x":250,"y":680,"width":0,"height":80,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,80]]},
+    {"id":"ajoin2","type":"arrow","x":730,"y":680,"width":-230,"height":80,"strokeColor":"#666","roughness":0,"points":[[0,0],[-230,80]]},
+
+    {"id":"gather1","type":"rectangle","x":260,"y":760,"width":480,"height":100,"strokeColor":"#44337a","backgroundColor":"#faf5ff","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"gather1t","type":"text","x":270,"y":773,"width":460,"height":74,"text":"GATHER — one question per turn, wait for answer\nQ1: What is the problem?\nQ2: Apartment or common area?\nQ3: Master key permitted?\nQ4: Special access notes? (skip if in profile)","fontSize":12,"fontFamily":1,"textAlign":"left","strokeColor":"#44337a","fillStyle":"solid","roughness":0},
+
+    {"id":"a7","type":"arrow","x":500,"y":860,"width":2,"height":40,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,40]]},
+
+    {"id":"confirm1","type":"rectangle","x":220,"y":900,"width":560,"height":100,"strokeColor":"#c0392b","backgroundColor":"#fff5f5","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"confirm1t","type":"text","x":230,"y":910,"width":540,"height":80,"text":"CONFIRMATION GATE\nRead back summary: address, apt, issue, master key, phone\nAsk: \"Is all of this correct?\"\nWAIT for: joo/kyllä/yes/correct/ja/stämmer/täsmälleen\nAnything else → correct & re-confirm","fontSize":12,"fontFamily":1,"textAlign":"left","strokeColor":"#c0392b","fillStyle":"solid","roughness":0},
+
+    {"id":"a8","type":"arrow","x":500,"y":1000,"width":2,"height":40,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,40]]},
+
+    {"id":"tool2","type":"rectangle","x":280,"y":1040,"width":440,"height":50,"strokeColor":"#744210","backgroundColor":"#fffbeb","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"tool2t","type":"text","x":290,"y":1053,"width":420,"height":24,"text":"TOOL: create_work_order(address, apt, issue, master_key, phone)","fontSize":13,"fontFamily":1,"textAlign":"center","strokeColor":"#744210","fillStyle":"solid","roughness":0},
+
+    {"id":"a9","type":"arrow","x":500,"y":1090,"width":2,"height":30,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,30]]},
+
+    {"id":"tool3","type":"rectangle","x":280,"y":1120,"width":440,"height":50,"strokeColor":"#744210","backgroundColor":"#fffbeb","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"tool3t","type":"text","x":290,"y":1133,"width":420,"height":24,"text":"TOOL: send_sms_confirmation — tell caller ticket + technician + time","fontSize":13,"fontFamily":1,"textAlign":"center","strokeColor":"#744210","fillStyle":"solid","roughness":0},
+
+    {"id":"a10","type":"arrow","x":500,"y":1170,"width":2,"height":30,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,30]]},
+
+    {"id":"d2","type":"diamond","x":360,"y":1200,"width":280,"height":80,"strokeColor":"#5c3317","backgroundColor":"#ffeeba","fillStyle":"solid","roughness":0},
+    {"id":"d2t","type":"text","x":370,"y":1228,"width":260,"height":24,"text":"Anything else?","fontSize":14,"fontFamily":1,"textAlign":"center","strokeColor":"#5c3317","fillStyle":"solid","roughness":0},
+
+    {"id":"a11yes","type":"arrow","x":360,"y":1240,"width":-120,"height":0,"strokeColor":"#276749","roughness":0,"points":[[0,0],[-80,0],[- 80,-480],[240,-480]],"label":{"text":"YES → back to gather","fontSize":11,"fontFamily":1}},
+
+    {"id":"a11no","type":"arrow","x":500,"y":1280,"width":2,"height":30,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,30]]},
+
+    {"id":"tool4","type":"rectangle","x":280,"y":1310,"width":440,"height":50,"strokeColor":"#744210","backgroundColor":"#fffbeb","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"tool4t","type":"text","x":290,"y":1323,"width":420,"height":24,"text":"TOOL: save_call_transcript(summary, work_order_id)","fontSize":13,"fontFamily":1,"textAlign":"center","strokeColor":"#744210","fillStyle":"solid","roughness":0},
+
+    {"id":"a12","type":"arrow","x":500,"y":1360,"width":2,"height":30,"strokeColor":"#666","roughness":0,"points":[[0,0],[0,30]]},
+
+    {"id":"farewell1","type":"rectangle","x":280,"y":1390,"width":440,"height":60,"strokeColor":"#276749","backgroundColor":"#f0fff4","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"farewell1t","type":"text","x":290,"y":1403,"width":420,"height":34,"text":"Agent speaks farewell aloud\nTOOL: end_call() → 1s drain → hangUp()","fontSize":13,"fontFamily":1,"textAlign":"center","strokeColor":"#276749","fillStyle":"solid","roughness":0},
+
+    {"id":"end1","type":"ellipse","x":400,"y":1470,"width":200,"height":50,"strokeColor":"#1e1e1e","backgroundColor":"#1e1e1e","fillStyle":"solid","roughness":0},
+    {"id":"end1t","type":"text","x":410,"y":1484,"width":180,"height":22,"text":"Call Ended","fontSize":14,"fontFamily":1,"textAlign":"center","strokeColor":"#ffffff","fillStyle":"solid","roughness":0},
+
+    {"id":"emergency1","type":"rectangle","x":860,"y":640,"width":220,"height":60,"strokeColor":"#c0392b","backgroundColor":"#fff5f5","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"emergency1t","type":"text","x":870,"y":653,"width":200,"height":34,"text":"EMERGENCY\n→ escalate_to_operator immediately","fontSize":11,"fontFamily":1,"textAlign":"center","strokeColor":"#c0392b","fillStyle":"solid","roughness":0},
+
+    {"id":"legend1","type":"rectangle","x":860,"y":760,"width":220,"height":160,"strokeColor":"#666","backgroundColor":"#f8f9fa","fillStyle":"solid","roughness":0,"cornerRadius":8},
+    {"id":"legend1t","type":"text","x":870,"y":770,"width":200,"height":140,"text":"LEGEND\n\n🟡 Server / DB operation\n🔵 WebRTC / Browser\n🟠 Agent tool call\n🟢 Agent speech\n🔴 Decision gate","fontSize":12,"fontFamily":1,"textAlign":"left","strokeColor":"#666","fillStyle":"solid","roughness":0}
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null,
+    "zoom": {"value": 0.8}
+  },
+  "files": {}
+}

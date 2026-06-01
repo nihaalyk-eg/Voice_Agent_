@@ -18,7 +18,6 @@ let wasInterrupted = false;
 let lastAgentFragment = '';
 let autoHangupTimer = null;
 let lastShownAgentItemId = null; // dedup guard for dual transcript events
-let endCallAfterSpeech = false;  // set by end_call tool; hangup fires after agent finishes speaking
 
 // Long-session harness
 let kcRefreshInterval = null;     // keep Keycloak token fresh during call
@@ -1382,7 +1381,6 @@ function cleanupCall() {
   callStartTime = null;
   wasInterrupted = false;
   lastShownAgentItemId = null;
-  endCallAfterSpeech = false;
   stopSessionHarness();
   if (autoHangupTimer) {
     clearTimeout(autoHangupTimer);
@@ -1465,12 +1463,6 @@ function handleRealtimeEvent(event) {
       pushTranscript('agent', transcript.trim());
     }
 
-    // Hang up only after the agent has finished speaking its farewell
-    if (endCallAfterSpeech) {
-      endCallAfterSpeech = false;
-      if (autoHangupTimer) clearTimeout(autoHangupTimer);
-      autoHangupTimer = setTimeout(() => { if (pc) hangUp(); }, 800);
-    }
   }
 
   // 3. Handle Tool Calls & Cost Calculation + Agent Transcript fallback via response.done
@@ -1492,8 +1484,8 @@ function handleRealtimeEvent(event) {
         addLogMessage(`Model requested tool: ${name}()`, 'info');
         executeTool(name, call_id, args);
       }
-
     }
+
   }
 }
 
@@ -1721,9 +1713,12 @@ async function executeTool(name, call_id, args) {
     }
 
     else if (name === 'end_call') {
-      addLogMessage('Agent ending call after farewell...', 'info');
-      output = { success: true, message: 'Noted. Deliver your farewell now, then the call will disconnect.' };
-      endCallAfterSpeech = true;
+      addLogMessage('Agent ended the call.', 'info');
+      output = { success: true };
+      submitToolResult(call_id, output);
+      // 1s drain — just enough for audio already buffered to finish playing
+      setTimeout(() => { if (pc) hangUp(); }, 1000);
+      return; // skip the submitToolResult at the bottom
     }
 
   } catch (err) {

@@ -3210,8 +3210,41 @@ body {
   gap: 24px;
   padding: 24px 32px;
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   min-height: 0;
+}
+
+/* Phone input + Start Call inline */
+.dialer-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.dialer-input-row .dialer-display-wrap {
+  flex: 1;
+  margin: 0;
+}
+.dialer-input-row .btn-call-action {
+  flex: 0 0 48px !important;
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+.dialer-input-row .btn-call-action span { display: none !important; }
+.dialer-input-row .btn-call-action i { font-size: 16px !important; margin: 0 !important; }
+
+/* Voice selector + Mute bottom row */
+.dialer-bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .dialer-card-panel {
@@ -3465,26 +3498,22 @@ body {
     display: none; /* Only show icon on logout */
   }
 
-  /* Page Content takes remaining viewport height */
+  /* Page Content scrollable on tablet/mobile */
   .page-main {
     height: calc(100vh - 60px);
-    overflow: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* 1. Voice Agent Tab responsive stacks */
   .voice-agent-layout {
     grid-template-columns: 1fr;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    overflow-y: visible;
     padding: 16px 20px;
     gap: 20px;
     height: auto;
     min-height: 0;
-  }
-
-  .page-main {
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    flex: none;
   }
 
   .dialer-card-panel {
@@ -4002,6 +4031,14 @@ tr:hover td { background: var(--bg-muted) !important; }
 /* Live context table */
 .context-table th { color: var(--text-muted) !important; }
 .context-table td { color: var(--text-primary) !important; }
+.context-field-value { color: var(--text-primary) !important; }
+.context-field-value.filled { color: var(--text-primary) !important; font-weight: 600 !important; }
+.context-field-value.missing { color: var(--text-muted) !important; }
+.context-field-name { color: var(--text-secondary) !important; }
+.context-field-name i { color: var(--text-muted) !important; }
+.state-required { background: hsl(0 72% 95%) !important; color: var(--red-glow) !important; border-color: hsl(0 72% 85%) !important; }
+.state-analyzing { background: hsl(38 92% 95%) !important; color: hsl(38 92% 38%) !important; border-color: hsl(38 92% 80%) !important; }
+.state-verified { background: hsl(142 60% 95%) !important; color: hsl(142 60% 32%) !important; border-color: hsl(142 60% 80%) !important; box-shadow: none !important; }
 
 /* Visualizer bars */
 .bar-track { background: var(--bg-muted) !important; }
