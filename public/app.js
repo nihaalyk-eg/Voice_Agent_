@@ -56,15 +56,15 @@ function updateLiveSessionCost(usage) {
   costTracker.outputText += outputText;
   costTracker.outputAudio += outputAudio;
 
-  // Real-time OpenAI Realtime API pricing constants:
-  // Audio Input: $100.00 / 1M tokens ($0.0001 per tkn)
-  // Audio Output: $200.00 / 1M tokens ($0.0002 per tkn)
+  // Real-time OpenAI Realtime API pricing constants (standard GPT-4o Realtime Preview rates):
+  // Audio Input: $40.00 / 1M tokens ($0.00004 per tkn)
+  // Audio Output: $80.00 / 1M tokens ($0.00008 per tkn)
   // Text Input: $5.00 / 1M tokens ($0.000005 per tkn)
-  // Text Output: $15.00 / 1M tokens ($0.000015 per tkn)
+  // Text Output: $20.00 / 1M tokens ($0.000020 per tkn)
   costTracker.cost = (costTracker.inputText * 0.000005) + 
-                     (costTracker.inputAudio * 0.0001) + 
-                     (costTracker.outputText * 0.000015) + 
-                     (costTracker.outputAudio * 0.0002);
+                     (costTracker.inputAudio * 0.00004) + 
+                     (costTracker.outputText * 0.00002) + 
+                     (costTracker.outputAudio * 0.00008);
 
   renderCostTrackerUI();
 }
