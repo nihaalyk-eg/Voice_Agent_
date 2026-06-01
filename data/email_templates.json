@@ -1,0 +1,30 @@
+[
+  {
+    "id": "tpl-1",
+    "label": "Leaking Pipe — Apartment",
+    "from": "liisa.virtanen@gmail.com",
+    "subject": "Urgent: Water leak in apartment B12, Hämeentie 23",
+    "body": "Hello,\n\nI am writing to report a water leak under the kitchen sink in my apartment.\n\nAddress: Hämeentie 23, Helsinki\nApartment: B12\nProblem: There is a slow but constant drip coming from under the kitchen sink. The pipe connection seems to be loose. I've placed a bucket under it but it fills up every few hours.\n\nThe master key can be used to enter my apartment.\nPlease note: I have a cat, so please be careful when opening the door.\n\nI am available Monday–Friday between 8:00 and 17:00.\n\nBest regards,\nLiisa Virtanen\nPhone: +358 40 888 1111"
+  },
+  {
+    "id": "tpl-2",
+    "label": "Broken Elevator — Common Area",
+    "from": "mikko.korhonen@outlook.com",
+    "subject": "Elevator not working at Mannerheimintie 10",
+    "body": "Hi,\n\nThe elevator at Mannerheimintie 10, Helsinki has been out of service since this morning. It stops at the 3rd floor and the doors don't open.\n\nThis is a common area issue affecting all residents.\n\nPlease send someone to fix it as soon as possible.\n\nThanks,\nMikko Korhonen\n+358 40 222 3333"
+  },
+  {
+    "id": "tpl-3",
+    "label": "Heating Issue — Apartment",
+    "from": "anna.nieminen@yahoo.com",
+    "subject": "No heating in apartment 4A at Fredrikinkatu 15",
+    "body": "Dear Property Maintenance,\n\nThe radiators in my apartment have been completely cold for the past two days.\n\nProperty: Fredrikinkatu 15, Helsinki\nApartment number: 4A\nIssue: All radiators are cold, no heating at all\n\nMaster key usage is permitted.\nNo special considerations.\n\nPlease arrange for a technician visit.\n\nRegards,\nAnna Nieminen\nTel: +358 40 444 5555"
+  },
+  {
+    "id": "tpl-4",
+    "label": "Parking Lot Light — Common Area",
+    "from": "jari.makinen@gmail.com",
+    "subject": "Broken light in parking area, Runeberginkatu 5",
+    "body": "Hello,\n\nThe outdoor light in the parking area at Runeberginkatu 5, Helsinki is broken. It has been dark for about a week now and it is becoming a safety hazard.\n\nThis is a common area issue.\n\nThe gate code is 7712#.\n\nBest,\nJari Mäkinen\nPhone: +358 40 666 7777"
+  }
+]

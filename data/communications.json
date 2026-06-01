@@ -1,0 +1,59 @@
+[
+  {
+    "id": "COM-1001",
+    "type": "call_transcript",
+    "timestamp": "2026-05-25T11:00:00Z",
+    "linked_work_order": "WO-9842",
+    "caller_phone": "+358 40 555 1234",
+    "summary": "Caller reported cold radiator in apartment A3 at Mannerheimintie 10. Master key permitted. Dog in apartment noted.",
+    "transcript": [
+      { "role": "agent", "text": "Welcome to Property Maintenance Support. How can I assist you today?" },
+      { "role": "user", "text": "Hi, I need to report a heating issue in my apartment." },
+      { "role": "agent", "text": "I'd be happy to help. Can you tell me the address of your property?" },
+      { "role": "user", "text": "It's Mannerheimintie 10 in Helsinki." },
+      { "role": "agent", "text": "Great, I see Matti Meikäläinen handles maintenance for Mannerheimintie 10. Is the issue in a common area or your apartment?" },
+      { "role": "user", "text": "It's in my apartment, A3." },
+      { "role": "agent", "text": "What seems to be the problem?" },
+      { "role": "user", "text": "The living room radiator is completely cold. I think there might be an air pocket." },
+      { "role": "agent", "text": "Is the use of a master key permitted to access your apartment?" },
+      { "role": "user", "text": "Yes, that's fine." },
+      { "role": "agent", "text": "Anything special to take into account?" },
+      { "role": "user", "text": "I have a friendly golden retriever, please ring the bell first." },
+      { "role": "agent", "text": "Got it. Let me confirm: Mannerheimintie 10, apartment A3, cold radiator with possible air pocket, master key permitted, dog in apartment. Your phone number is +358 40 555 1234. Is this correct?" },
+      { "role": "user", "text": "Yes, that's all correct." },
+      { "role": "agent", "text": "I've created work order WO-9842 and assigned it to Matti Meikäläinen. He'll arrive today at 2:00 PM. You'll receive an SMS confirmation shortly." }
+    ],
+    "call_category": "fault_report",
+    "duration_seconds": 185
+  },
+  {
+    "id": "COM-1002",
+    "type": "sms_confirmation",
+    "timestamp": "2026-05-25T11:03:00Z",
+    "linked_work_order": "WO-9842",
+    "recipient_phone": "+358 40 555 1234",
+    "message": "Your maintenance request WO-9842 has been registered. Technician Matti Meikäläinen will arrive today at 2:00 PM at Mannerheimintie 10, Apt A3. Issue: Cold radiator. — Kiinteistö-Agent",
+    "status": "sent"
+  },
+  {
+    "id": "COM-1003",
+    "type": "call_transcript",
+    "timestamp": "2026-05-24T08:30:00Z",
+    "linked_work_order": "WO-9839",
+    "caller_phone": "+358 40 777 9876",
+    "summary": "Caller reported flickering stairwell light on 2nd floor at Runeberginkatu 5. Common area issue. Door code provided.",
+    "transcript": [
+      { "role": "agent", "text": "Welcome to Property Maintenance Support. How can I assist you today?" },
+      { "role": "user", "text": "There's a light that keeps flickering in the stairwell." },
+      { "role": "agent", "text": "I can help with that. What's the address?" },
+      { "role": "user", "text": "Runeberginkatu 5, Helsinki." },
+      { "role": "agent", "text": "Is this a common area issue or in a specific apartment?" },
+      { "role": "user", "text": "It's in the common area, second floor stairwell." },
+      { "role": "agent", "text": "Understood. The main entrance — is there a door code?" },
+      { "role": "user", "text": "Yes, it's 4589#." },
+      { "role": "agent", "text": "Work order WO-9839 has been created. Pekka Puupää will handle it tomorrow at 10:00 AM." }
+    ],
+    "call_category": "fault_report",
+    "duration_seconds": 120
+  }
+]
