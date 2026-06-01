@@ -22,6 +22,151 @@ let emailTemplates = [];
 let activeTab = 'work-orders';
 let activeCommsFilter = 'all';
 
+// ==========================================================================
+// Dynamic HUD Context Builder State & Logic
+// ==========================================================================
+let liveContext = {
+  residentName: null,
+  phone: null,
+  propertyAddress: null,
+  apartment: null,
+  isCommonArea: null,
+  issueDescription: null,
+  masterKeyPermit: null,
+  technician: null,
+  urgency: null,
+  ticketStatus: null
+};
+
+function resetLiveContext() {
+  liveContext = {
+    residentName: null,
+    phone: document.getElementById('dialer-number')?.value || '+358 40 123 4567',
+    propertyAddress: null,
+    apartment: null,
+    isCommonArea: null,
+    issueDescription: null,
+    masterKeyPermit: null,
+    technician: null,
+    urgency: null,
+    ticketStatus: null
+  };
+  renderLiveContextTable();
+}
+
+function renderLiveContextTable() {
+  const tbody = document.getElementById('context-table-body');
+  if (!tbody) return;
+
+  const fields = [
+    {
+      key: 'residentName',
+      label: 'Resident Name',
+      icon: 'fa-user',
+      getValue: () => liveContext.residentName,
+      getState: () => liveContext.residentName ? 'verified' : 'analyzing',
+      getDisplayValue: () => liveContext.residentName || 'Analyzing caller profile...'
+    },
+    {
+      key: 'phone',
+      label: 'Phone Number',
+      icon: 'fa-phone',
+      getValue: () => liveContext.phone,
+      getState: () => 'verified',
+      getDisplayValue: () => liveContext.phone
+    },
+    {
+      key: 'propertyAddress',
+      label: 'Property Address',
+      icon: 'fa-building',
+      getValue: () => liveContext.propertyAddress,
+      getState: () => liveContext.propertyAddress ? 'verified' : 'required',
+      getDisplayValue: () => liveContext.propertyAddress || 'Awaiting address...'
+    },
+    {
+      key: 'apartment',
+      label: 'Apartment / Unit',
+      icon: 'fa-door-closed',
+      getValue: () => liveContext.apartment,
+      getState: () => liveContext.apartment ? 'verified' : 'required',
+      getDisplayValue: () => liveContext.apartment || 'Awaiting unit number...'
+    },
+    {
+      key: 'issueDescription',
+      label: 'Issue Description',
+      icon: 'fa-wrench',
+      getValue: () => liveContext.issueDescription,
+      getState: () => liveContext.issueDescription ? 'verified' : 'required',
+      getDisplayValue: () => liveContext.issueDescription || 'Awaiting diagnostic report...'
+    },
+    {
+      key: 'masterKeyPermit',
+      label: 'Master Key Permit',
+      icon: 'fa-key',
+      getValue: () => liveContext.masterKeyPermit,
+      getState: () => liveContext.masterKeyPermit ? 'verified' : 'required',
+      getDisplayValue: () => liveContext.masterKeyPermit || 'Awaiting key loan consent...'
+    },
+    {
+      key: 'technician',
+      label: 'Assigned Tech',
+      icon: 'fa-user-gear',
+      getValue: () => liveContext.technician,
+      getState: () => liveContext.technician ? 'verified' : 'required',
+      getDisplayValue: () => liveContext.technician || 'Not assigned'
+    },
+    {
+      key: 'ticketStatus',
+      label: 'Ticket Status',
+      icon: 'fa-receipt',
+      getValue: () => liveContext.ticketStatus,
+      getState: () => liveContext.ticketStatus ? 'verified' : 'required',
+      getDisplayValue: () => liveContext.ticketStatus ? `Created (${liveContext.ticketStatus})` : 'Not Created'
+    }
+  ];
+
+  tbody.innerHTML = '';
+  fields.forEach(f => {
+    const tr = document.createElement('tr');
+    const value = f.getValue();
+    const state = f.getState();
+    const displayValue = f.getDisplayValue();
+
+    let stateClass = 'state-required';
+    let stateIcon = 'fa-triangle-exclamation';
+    let stateText = 'Required';
+
+    if (state === 'verified') {
+      stateClass = 'state-verified';
+      stateIcon = 'fa-circle-check';
+      stateText = 'Verified';
+    } else if (state === 'analyzing') {
+      stateClass = 'state-analyzing';
+      stateIcon = 'fa-spinner fa-spin';
+      stateText = 'Analyzing';
+    }
+
+    tr.innerHTML = `
+      <td>
+        <span class="context-field-name">
+          <i class="fa-solid ${f.icon}"></i> ${f.label}
+        </span>
+      </td>
+      <td>
+        <span class="context-field-value ${value ? 'filled' : 'missing'}">
+          ${displayValue}
+        </span>
+      </td>
+      <td>
+        <span class="context-state-badge ${stateClass}">
+          <i class="fa-solid ${stateIcon}"></i> ${stateText}
+        </span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
 // DOM Elements
 const btnCall = document.getElementById('btn-call');
 const btnCallText = document.getElementById('btn-call-text');
@@ -52,6 +197,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadCommunications();
   loadEmailTemplates();
   setupResizers();
+  resetLiveContext();
 });
 
 // Fetch properties and technicians list from backend
@@ -835,6 +981,7 @@ async function startCall() {
     // Reset transcript accumulator
     callTranscriptAccumulator = [];
     callStartTime = Date.now();
+    resetLiveContext();
 
     // 1. Reset UI to connecting state
     setCallStatus('connecting', 'CONNECTING...');
@@ -1113,9 +1260,21 @@ async function executeTool(name, call_id, args) {
               notes: c.notes || ''
             };
             addLogMessage(`Customer identified: ${c.full_name} — ${c.property_address}, apt ${c.apartment_number}`, 'success');
+
+            // Prefill HUD Context Builder in real-time
+            liveContext.residentName = c.full_name;
+            liveContext.phone = c.phone_number;
+            liveContext.propertyAddress = c.property_address;
+            liveContext.apartment = c.apartment_number || 'N/A';
+            renderLiveContextTable();
           } else {
             output = { found: false, note: 'Caller not in resident database. Proceed with standard greeting.' };
             addLogMessage(`Unknown caller: ${phone}`, 'info');
+
+            // Prefill HUD Caller Phone anyway
+            liveContext.residentName = 'Unknown Resident';
+            liveContext.phone = phone;
+            renderLiveContextTable();
           }
         } else {
           output = { found: false, note: 'Lookup failed. Proceed with standard greeting.' };
@@ -1139,6 +1298,11 @@ async function executeTool(name, call_id, args) {
           company: matched.company
         };
         addLogMessage(`Retrieved technician: ${matched.technician} for ${matched.address}`, 'success');
+
+        // Update HUD Context in real-time
+        liveContext.propertyAddress = matched.address;
+        liveContext.technician = matched.technician;
+        renderLiveContextTable();
       } else {
         output = {
           success: true,
@@ -1149,6 +1313,11 @@ async function executeTool(name, call_id, args) {
           note: 'Property not matching active catalog. Assigning regional backup tech.'
         };
         addLogMessage(`Address not recognized, assigned default tech Pekka Puupää`, 'info');
+
+        // Update HUD Context in real-time
+        liveContext.propertyAddress = address;
+        liveContext.technician = 'Pekka Puupää';
+        renderLiveContextTable();
       }
     }
     
@@ -1183,8 +1352,21 @@ async function executeTool(name, call_id, args) {
       updateTabBadges();
       addLogMessage(`[ERP] Work Order ${newWo.id} created!`, 'success');
 
-      // Switch to work orders tab to show the new entry
-      switchTab('work-orders');
+      // Update HUD Context Builder in real-time
+      liveContext.propertyAddress = newWo.property_address;
+      liveContext.apartment = newWo.apartment_number || 'N/A';
+      liveContext.isCommonArea = newWo.is_common_area ? 'Yes' : 'No';
+      liveContext.issueDescription = newWo.issue_description;
+      liveContext.masterKeyPermit = newWo.permit_master_key ? 'Yes' : 'No';
+      liveContext.urgency = newWo.urgency_level || 'Standard';
+      liveContext.technician = newWo.technician;
+      liveContext.ticketStatus = newWo.id;
+      renderLiveContextTable();
+
+      // Switch to work orders tab to show the new entry after a slight delay so operator can see HUD verified!
+      setTimeout(() => {
+        switchTab('work-orders');
+      }, 2500);
     }
     
     else if (name === 'send_sms_confirmation') {
