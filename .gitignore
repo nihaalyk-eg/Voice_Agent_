@@ -24,3 +24,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Docker volumes (if stored locally)
+pgdata/
+valkeydata/

@@ -1,9 +1,12 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
 const { createRemoteJWKSet, jwtVerify } = require('jose');
+
+const db = require('./db');
+const cache = require('./cache');
+const cacheKeys = require('./cache/keys');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -34,44 +37,57 @@ app.use(express.json());
 // Serve static files from /public directory
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Unauthenticated health check endpoint (defined BEFORE auth middleware)
+app.get('/health', async (req, res) => {
+  const pgHealthy = await db.checkHealth();
+  const valkeyHealthy = await cache.checkHealth();
+  
+  if (pgHealthy && valkeyHealthy) {
+    return res.status(200).json({
+      status: 'ok',
+      postgres: true,
+      valkey: true
+    });
+  } else {
+    return res.status(500).json({
+      status: 'unhealthy',
+      postgres: pgHealthy,
+      valkey: valkeyHealthy
+    });
+  }
+});
+
 // Protect all API routes
 app.use('/api', requireAuth);
 
-// File paths for data stores
-const PROPERTIES_PATH = path.join(__dirname, 'data', 'properties.json');
-const WORK_ORDERS_PATH = path.join(__dirname, 'data', 'work_orders.json');
-const COMMUNICATIONS_PATH = path.join(__dirname, 'data', 'communications.json');
-const EMAIL_TEMPLATES_PATH = path.join(__dirname, 'data', 'email_templates.json');
-
-// Helper to read JSON files safely
-const readJsonFile = (filePath, defaultVal = []) => {
-  try {
-    if (fs.existsSync(filePath)) {
-      const content = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(content);
-    }
-  } catch (err) {
-    console.error(`Error reading ${filePath}:`, err);
+// Helper functions for properties & email templates caching
+async function getPropertiesList() {
+  let list = await cache.getJSON(cacheKeys.PROPERTIES_LIST);
+  if (!list) {
+    console.log('[Cache] PROPERTIES_LIST miss. Fetching from database...');
+    const res = await db.query('SELECT * FROM properties');
+    list = res.rows;
+    await cache.setJSON(cacheKeys.PROPERTIES_LIST, list, 300);
   }
-  return defaultVal;
-};
+  return list;
+}
 
-// Helper to write JSON files safely
-const writeJsonFile = (filePath, data) => {
-  try {
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-    return true;
-  } catch (err) {
-    console.error(`Error writing ${filePath}:`, err);
-    return false;
+async function getEmailTemplatesList() {
+  let list = await cache.getJSON(cacheKeys.EMAIL_TEMPLATES_LIST);
+  if (!list) {
+    console.log('[Cache] EMAIL_TEMPLATES_LIST miss. Fetching from database...');
+    const res = await db.query('SELECT * FROM email_templates');
+    list = res.rows.map(row => ({
+      id: row.id,
+      label: row.label,
+      from: row.from_address, // Map from_address back to 'from' for frontend compatibility
+      subject: row.subject,
+      body: row.body
+    }));
+    await cache.setJSON(cacheKeys.EMAIL_TEMPLATES_LIST, list, 600);
   }
-};
-
-// Load databases
-let properties = readJsonFile(PROPERTIES_PATH);
-let workOrders = readJsonFile(WORK_ORDERS_PATH);
-let communications = readJsonFile(COMMUNICATIONS_PATH);
-let emailTemplates = readJsonFile(EMAIL_TEMPLATES_PATH);
+  return list;
+}
 
 // ============================================================
 // Email Parsing Intelligence
@@ -88,7 +104,7 @@ let emailTemplates = readJsonFile(EMAIL_TEMPLATES_PATH);
  *  - Phone number
  *  - Urgency indicators
  */
-function parseEmailToWorkOrder(email) {
+function parseEmailToWorkOrder(email, properties) {
   const { from, subject, body } = email;
   const fullText = `${subject}\n${body}`;
   const lowerText = fullText.toLowerCase();
@@ -218,17 +234,41 @@ function parseEmailToWorkOrder(email) {
 // ============================================================
 
 // 1. Get properties database
-app.get('/api/properties', (req, res) => {
-  res.json(properties);
+app.get('/api/properties', async (req, res) => {
+  try {
+    const properties = await getPropertiesList();
+    res.json(properties);
+  } catch (err) {
+    console.error('Error fetching properties:', err);
+    res.status(500).json({ error: 'Failed to fetch properties' });
+  }
 });
 
+// Helper for cached work orders
+async function getWorkOrdersList() {
+  let list = await cache.getJSON(cacheKeys.WORK_ORDERS_LIST);
+  if (!list) {
+    console.log('[Cache] WORK_ORDERS_LIST miss. Fetching from database...');
+    const res = await db.query('SELECT * FROM work_orders ORDER BY created_at DESC');
+    list = res.rows;
+    await cache.setJSON(cacheKeys.WORK_ORDERS_LIST, list, 60);
+  }
+  return list;
+}
+
 // 2. Get active work orders
-app.get('/api/work-orders', (req, res) => {
-  res.json(workOrders);
+app.get('/api/work-orders', async (req, res) => {
+  try {
+    const workOrders = await getWorkOrdersList();
+    res.json(workOrders);
+  } catch (err) {
+    console.error('Error fetching work orders:', err);
+    res.status(500).json({ error: 'Failed to fetch work orders' });
+  }
 });
 
 // 3. Create a new work order (ERP system entry)
-app.post('/api/work-orders', (req, res) => {
+app.post('/api/work-orders', async (req, res) => {
   const {
     property_address,
     apartment_number,
@@ -248,54 +288,74 @@ app.post('/api/work-orders', (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // Find responsible technician for property
-  const property = properties.find(p => 
-    p.address.toLowerCase().includes(property_address.toLowerCase())
-  );
+  try {
+    // Find responsible technician for property
+    const properties = await getPropertiesList();
+    const property = properties.find(p => 
+      p.address.toLowerCase().includes(property_address.toLowerCase())
+    );
 
-  const technicianName = property ? property.technician : 'Pekka Puupää';
-  const technicianPhone = property ? property.technician_phone : '+358 50 555 6666';
+    const technicianName = property ? property.technician : 'Pekka Puupää';
+    const technicianPhone = property ? property.technician_phone : '+358 50 555 6666';
 
-  // Rule-based scheduling logic:
-  // - Urgent issues are scheduled for immediate dispatch (within 2 hours)
-  // - Standard issues scheduled for next day at 9:00 AM
-  let scheduledTime = '';
-  if (urgency_level.toLowerCase() === 'urgent') {
-    scheduledTime = 'Immediate (Within 2 Hours)';
-  } else {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    scheduledTime = `${tomorrow.toLocaleDateString('en-US', { weekday: 'long' })}, 9:00 AM`;
+    // Rule-based scheduling logic:
+    // - Urgent issues are scheduled for immediate dispatch (within 2 hours)
+    // - Standard issues scheduled for next day at 9:00 AM
+    let scheduledTime = '';
+    if (urgency_level.toLowerCase() === 'urgent') {
+      scheduledTime = 'Immediate (Within 2 Hours)';
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      scheduledTime = `${tomorrow.toLocaleDateString('en-US', { weekday: 'long' })}, 9:00 AM`;
+    }
+
+    const newId = `WO-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const queryText = `
+      INSERT INTO work_orders (
+        id, property_address, apartment_number, is_common_area, issue_description,
+        permit_master_key, special_notes, caller_phone_number, urgency_level,
+        technician, technician_phone, status, scheduled_time, source,
+        call_category, transcript_id, sender_email, created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      RETURNING *
+    `;
+
+    const values = [
+      newId,
+      property_address,
+      is_common_area ? 'Common Area' : (apartment_number || 'N/A'),
+      !!is_common_area,
+      issue_description,
+      !!permit_master_key,
+      special_notes || '',
+      caller_phone_number,
+      urgency_level,
+      technicianName,
+      technicianPhone,
+      'Assigned',
+      scheduledTime,
+      source,
+      call_category,
+      transcript_id,
+      sender_email,
+      new Date().toISOString()
+    ];
+
+    const insertRes = await db.query(queryText, values);
+    const newWorkOrder = insertRes.rows[0];
+
+    // Invalidate work orders cache
+    await cache.invalidate(cacheKeys.WORK_ORDERS_LIST);
+
+    console.log(`[ERP] Work Order ${newId} created (source: ${source}):`, newWorkOrder);
+    res.status(201).json(newWorkOrder);
+  } catch (err) {
+    console.error('Failed to create work order:', err);
+    res.status(500).json({ error: 'Failed to create work order' });
   }
-
-  const newId = `WO-${Math.floor(1000 + Math.random() * 9000)}`;
-
-  const newWorkOrder = {
-    id: newId,
-    property_address,
-    apartment_number: is_common_area ? 'Common Area' : (apartment_number || 'N/A'),
-    is_common_area: !!is_common_area,
-    issue_description,
-    permit_master_key: !!permit_master_key,
-    special_notes: special_notes || '',
-    caller_phone_number,
-    urgency_level,
-    technician: technicianName,
-    technician_phone: technicianPhone,
-    status: 'Assigned',
-    scheduled_time: scheduledTime,
-    source,
-    call_category,
-    transcript_id,
-    sender_email,
-    created_at: new Date().toISOString()
-  };
-
-  workOrders.unshift(newWorkOrder); // Add to beginning
-  writeJsonFile(WORK_ORDERS_PATH, workOrders);
-
-  console.log(`[ERP] Work Order ${newId} created (source: ${source}):`, newWorkOrder);
-  res.status(201).json(newWorkOrder);
 });
 
 // 4. Session endpoint: Creates ephemeral client secret for WebRTC client connection
@@ -623,57 +683,100 @@ Remain conversational, highly helpful, and speak natural, standard English. Keep
 });
 
 // 5. Update a work order (status or details)
-app.put('/api/work-orders/:id', (req, res) => {
+app.put('/api/work-orders/:id', async (req, res) => {
   const { id } = req.params;
   const { status, urgency_level } = req.body;
   
-  const wo = workOrders.find(w => w.id === id);
-  if (!wo) {
-    return res.status(404).json({ error: 'Work order not found' });
-  }
-  
-  if (status) wo.status = status;
-  if (urgency_level) {
-    wo.urgency_level = urgency_level;
-    if (urgency_level.toLowerCase() === 'urgent') {
-      wo.scheduled_time = 'Immediate (Within 2 Hours)';
+  try {
+    // Fetch current work order first to get existing scheduled_time/urgency
+    const currentWoRes = await db.query('SELECT * FROM work_orders WHERE id = $1', [id]);
+    if (currentWoRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Work order not found' });
     }
+    
+    const currentWo = currentWoRes.rows[0];
+    let newStatus = status || currentWo.status;
+    let newUrgency = urgency_level || currentWo.urgency_level;
+    let newScheduledTime = currentWo.scheduled_time;
+    
+    if (urgency_level && urgency_level.toLowerCase() !== currentWo.urgency_level.toLowerCase()) {
+      if (urgency_level.toLowerCase() === 'urgent') {
+        newScheduledTime = 'Immediate (Within 2 Hours)';
+      } else {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        newScheduledTime = `${tomorrow.toLocaleDateString('en-US', { weekday: 'long' })}, 9:00 AM`;
+      }
+    }
+    
+    const updateRes = await db.query(`
+      UPDATE work_orders
+      SET status = $1, urgency_level = $2, scheduled_time = $3
+      WHERE id = $4
+      RETURNING *
+    `, [newStatus, newUrgency, newScheduledTime, id]);
+    
+    // Invalidate cache
+    await cache.invalidate(cacheKeys.WORK_ORDERS_LIST);
+    
+    console.log(`[ERP] Work Order ${id} updated:`, updateRes.rows[0]);
+    res.json(updateRes.rows[0]);
+  } catch (err) {
+    console.error(`Error updating work order ${id}:`, err);
+    res.status(500).json({ error: 'Failed to update work order' });
   }
-  
-  writeJsonFile(WORK_ORDERS_PATH, workOrders);
-  console.log(`[ERP] Work Order ${id} updated:`, wo);
-  res.json(wo);
 });
 
 // 6. Delete a work order
-app.delete('/api/work-orders/:id', (req, res) => {
+app.delete('/api/work-orders/:id', async (req, res) => {
   const { id } = req.params;
-  const index = workOrders.findIndex(w => w.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Work order not found' });
-  }
   
-  const deleted = workOrders.splice(index, 1)[0];
-  writeJsonFile(WORK_ORDERS_PATH, workOrders);
-  console.log(`[ERP] Work Order ${id} deleted.`);
-  res.json({ success: true, deleted_id: id });
+  try {
+    const deleteRes = await db.query('DELETE FROM work_orders WHERE id = $1 RETURNING id', [id]);
+    if (deleteRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Work order not found' });
+    }
+    
+    // Invalidate cache
+    await cache.invalidate(cacheKeys.WORK_ORDERS_LIST);
+    
+    console.log(`[ERP] Work Order ${id} deleted.`);
+    res.json({ success: true, deleted_id: id });
+  } catch (err) {
+    console.error(`Error deleting work order ${id}:`, err);
+    res.status(500).json({ error: 'Failed to delete work order' });
+  }
 });
 
 // ============================================================
-// NEW ENDPOINTS — Communications & Email Agent
+// COMMUNICATIONS & EMAIL AGENT
 // ============================================================
 
 // 7. Get communications history
-app.get('/api/communications', (req, res) => {
+app.get('/api/communications', async (req, res) => {
   const { type } = req.query;
-  if (type) {
-    return res.json(communications.filter(c => c.type === type));
+  
+  try {
+    let queryText = 'SELECT * FROM communications';
+    let values = [];
+    
+    if (type) {
+      queryText += ' WHERE type = $1';
+      values.push(type);
+    }
+    
+    queryText += ' ORDER BY timestamp DESC';
+    
+    const result = await db.query(queryText, values);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching communications:', err);
+    res.status(500).json({ error: 'Failed to fetch communications' });
   }
-  res.json(communications);
 });
 
 // 8. Create a communication record (transcript, SMS, email record)
-app.post('/api/communications', (req, res) => {
+app.post('/api/communications', async (req, res) => {
   const {
     type,
     linked_work_order = null,
@@ -698,46 +801,48 @@ app.post('/api/communications', (req, res) => {
 
   const newId = `COM-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  const newComm = {
-    id: newId,
-    type,
-    timestamp: new Date().toISOString(),
-    linked_work_order,
-    ...(type === 'call_transcript' && {
+  try {
+    const queryText = `
+      INSERT INTO communications (
+        id, type, timestamp, linked_work_order, caller_phone, recipient_phone,
+        summary, transcript, message, call_category, duration_seconds,
+        sender_email, original_email, extracted_data, status, reason, property_address
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      RETURNING *
+    `;
+
+    const values = [
+      newId,
+      type,
+      new Date().toISOString(),
+      linked_work_order,
       caller_phone,
-      summary,
-      transcript,
-      call_category,
-      duration_seconds
-    }),
-    ...(type === 'sms_confirmation' && {
       recipient_phone,
+      summary,
+      transcript ? JSON.stringify(transcript) : null,
       message,
-      status: 'sent'
-    }),
-    ...(type === 'email_intake' && {
+      call_category,
+      duration_seconds,
       sender_email,
-      original_email,
-      extracted_data,
-      status: status || 'processed'
-    }),
-    ...(type === 'escalation' && {
-      caller_phone,
+      original_email ? JSON.stringify(original_email) : null,
+      extracted_data ? JSON.stringify(extracted_data) : null,
+      status || (type === 'sms_confirmation' ? 'sent' : type === 'email_intake' ? 'processed' : type === 'escalation' ? 'escalated' : null),
       reason,
-      property_address,
-      status: 'escalated'
-    })
-  };
+      property_address
+    ];
 
-  communications.unshift(newComm);
-  writeJsonFile(COMMUNICATIONS_PATH, communications);
-
-  console.log(`[Comms] New ${type} record ${newId} stored.`);
-  res.status(201).json(newComm);
+    const insertRes = await db.query(queryText, values);
+    console.log(`[Comms] New ${type} record ${newId} stored.`);
+    res.status(201).json(insertRes.rows[0]);
+  } catch (err) {
+    console.error('Error creating communication record:', err);
+    res.status(500).json({ error: 'Failed to save communication record' });
+  }
 });
 
-// 9. Email intake endpoint — parses email and creates work order automatically
-app.post('/api/email-intake', (req, res) => {
+// 9. Email intake endpoint — parses email and creates work order automatically using transaction
+app.post('/api/email-intake', async (req, res) => {
   const { from, subject, body } = req.body;
 
   if (!from || !subject || !body) {
@@ -747,82 +852,119 @@ app.post('/api/email-intake', (req, res) => {
   console.log(`[Email Agent] Processing email from: ${from}`);
   console.log(`[Email Agent] Subject: ${subject}`);
 
-  // Step 1: Parse the email into structured data
-  const extractedData = parseEmailToWorkOrder({ from, subject, body });
-  console.log(`[Email Agent] Extracted data:`, extractedData);
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  // Step 2: Find responsible technician
-  const property = properties.find(p =>
-    p.address.toLowerCase().includes(extractedData.property_address.toLowerCase())
-  );
-  const technicianName = property ? property.technician : 'Pekka Puupää';
-  const technicianPhone = property ? property.technician_phone : '+358 50 555 6666';
+    // Fetch properties list for parser
+    const properties = await getPropertiesList();
 
-  // Step 3: Scheduling logic
-  let scheduledTime = '';
-  if (extractedData.urgency_level.toLowerCase() === 'urgent') {
-    scheduledTime = 'Immediate (Within 2 Hours)';
-  } else {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    scheduledTime = `${tomorrow.toLocaleDateString('en-US', { weekday: 'long' })}, 9:00 AM`;
+    // Step 1: Parse the email into structured data
+    const extractedData = parseEmailToWorkOrder({ from, subject, body }, properties);
+    console.log(`[Email Agent] Extracted data:`, extractedData);
+
+    // Step 2: Find responsible technician
+    const property = properties.find(p =>
+      p.address.toLowerCase().includes(extractedData.property_address.toLowerCase())
+    );
+    const technicianName = property ? property.technician : 'Pekka Puupää';
+    const technicianPhone = property ? property.technician_phone : '+358 50 555 6666';
+
+    // Step 3: Scheduling logic
+    let scheduledTime = '';
+    if (extractedData.urgency_level.toLowerCase() === 'urgent') {
+      scheduledTime = 'Immediate (Within 2 Hours)';
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      scheduledTime = `${tomorrow.toLocaleDateString('en-US', { weekday: 'long' })}, 9:00 AM`;
+    }
+
+    // Step 4: Create the work order
+    const woId = `WO-${Math.floor(1000 + Math.random() * 9000)}`;
+    const woQuery = `
+      INSERT INTO work_orders (
+        id, property_address, apartment_number, is_common_area, issue_description,
+        permit_master_key, special_notes, caller_phone_number, urgency_level,
+        technician, technician_phone, status, scheduled_time, source,
+        call_category, transcript_id, sender_email, created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      RETURNING *
+    `;
+    const woValues = [
+      woId,
+      extractedData.property_address,
+      extractedData.apartment_number,
+      extractedData.is_common_area,
+      extractedData.issue_description,
+      extractedData.permit_master_key,
+      extractedData.special_notes,
+      extractedData.caller_phone_number,
+      extractedData.urgency_level,
+      technicianName,
+      technicianPhone,
+      'Assigned',
+      scheduledTime,
+      'email',
+      'fault_report',
+      null,
+      from,
+      new Date().toISOString()
+    ];
+    
+    const woRes = await client.query(woQuery, woValues);
+    const newWorkOrder = woRes.rows[0];
+
+    // Step 5: Log the email intake communication
+    const commId = `COM-${Math.floor(1000 + Math.random() * 9000)}`;
+    const commQuery = `
+      INSERT INTO communications (
+        id, type, timestamp, linked_work_order, sender_email,
+        original_email, extracted_data, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
+    const commValues = [
+      commId,
+      'email_intake',
+      new Date().toISOString(),
+      woId,
+      from,
+      JSON.stringify({ from, subject, body }),
+      JSON.stringify(extractedData),
+      'processed'
+    ];
+
+    const commRes = await client.query(commQuery, commValues);
+    const emailComm = commRes.rows[0];
+
+    await client.query('COMMIT');
+
+    // Invalidate work orders cache
+    await cache.invalidate(cacheKeys.WORK_ORDERS_LIST);
+
+    console.log(`[Email Agent] Work Order ${woId} created from email.`);
+    console.log(`[Email Agent] Communication ${commId} logged.`);
+
+    res.status(201).json({
+      success: true,
+      work_order: newWorkOrder,
+      communication: emailComm,
+      extraction_report: extractedData
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[Email Agent] Transaction rolled back due to error:', err);
+    res.status(500).json({ error: 'Failed to process email intake' });
+  } finally {
+    client.release();
   }
-
-  // Step 4: Create the work order
-  const newId = `WO-${Math.floor(1000 + Math.random() * 9000)}`;
-  const newWorkOrder = {
-    id: newId,
-    property_address: extractedData.property_address,
-    apartment_number: extractedData.apartment_number,
-    is_common_area: extractedData.is_common_area,
-    issue_description: extractedData.issue_description,
-    permit_master_key: extractedData.permit_master_key,
-    special_notes: extractedData.special_notes,
-    caller_phone_number: extractedData.caller_phone_number,
-    urgency_level: extractedData.urgency_level,
-    technician: technicianName,
-    technician_phone: technicianPhone,
-    status: 'Assigned',
-    scheduled_time: scheduledTime,
-    source: 'email',
-    call_category: 'fault_report',
-    transcript_id: null,
-    sender_email: from,
-    created_at: new Date().toISOString()
-  };
-
-  workOrders.unshift(newWorkOrder);
-  writeJsonFile(WORK_ORDERS_PATH, workOrders);
-
-  // Step 5: Log the email intake communication
-  const commId = `COM-${Math.floor(1000 + Math.random() * 9000)}`;
-  const emailComm = {
-    id: commId,
-    type: 'email_intake',
-    timestamp: new Date().toISOString(),
-    linked_work_order: newId,
-    sender_email: from,
-    original_email: { from, subject, body },
-    extracted_data: extractedData,
-    status: 'processed'
-  };
-
-  communications.unshift(emailComm);
-  writeJsonFile(COMMUNICATIONS_PATH, communications);
-
-  console.log(`[Email Agent] Work Order ${newId} created from email.`);
-  console.log(`[Email Agent] Communication ${commId} logged.`);
-
-  res.status(201).json({
-    success: true,
-    work_order: newWorkOrder,
-    communication: emailComm,
-    extraction_report: extractedData
-  });
 });
 
 // 10. Escalation endpoint — logs emergency escalation events
-app.post('/api/escalate', (req, res) => {
+app.post('/api/escalate', async (req, res) => {
   const { caller_phone, reason, property_address } = req.body;
 
   if (!reason) {
@@ -830,27 +972,45 @@ app.post('/api/escalate', (req, res) => {
   }
 
   const commId = `COM-${Math.floor(1000 + Math.random() * 9000)}`;
-  const escalation = {
-    id: commId,
-    type: 'escalation',
-    timestamp: new Date().toISOString(),
-    caller_phone: caller_phone || 'Unknown',
-    reason,
-    property_address: property_address || 'Not identified',
-    status: 'escalated',
-    linked_work_order: null
-  };
 
-  communications.unshift(escalation);
-  writeJsonFile(COMMUNICATIONS_PATH, communications);
+  try {
+    const queryText = `
+      INSERT INTO communications (
+        id, type, timestamp, caller_phone, reason, property_address, status, linked_work_order
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `;
 
-  console.log(`[ESCALATION] Emergency case ${commId}: ${reason}`);
-  res.status(201).json(escalation);
+    const values = [
+      commId,
+      'escalation',
+      new Date().toISOString(),
+      caller_phone || 'Unknown',
+      reason,
+      property_address || 'Not identified',
+      'escalated',
+      null
+    ];
+
+    const insertRes = await db.query(queryText, values);
+    console.log(`[ESCALATION] Emergency case ${commId}: ${reason}`);
+    res.status(201).json(insertRes.rows[0]);
+  } catch (err) {
+    console.error('Failed to log escalation event:', err);
+    res.status(500).json({ error: 'Failed to log escalation event' });
+  }
 });
 
 // 11. Get email templates (for demo UI)
-app.get('/api/email-templates', (req, res) => {
-  res.json(emailTemplates);
+app.get('/api/email-templates', async (req, res) => {
+  try {
+    const templates = await getEmailTemplatesList();
+    res.json(templates);
+  } catch (err) {
+    console.error('Error fetching email templates:', err);
+    res.status(500).json({ error: 'Failed to fetch email templates' });
+  }
 });
 
 // Fallback to serve index.html for undefined frontend routes
@@ -858,13 +1018,52 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`=============================================================`);
-  console.log(`  Kiinteistö-Agent Voice + Email POC Running At: http://localhost:${PORT}`);
-  console.log(`=============================================================`);
-  console.log(`  Properties loaded: ${properties.length}`);
-  console.log(`  Work orders loaded: ${workOrders.length}`);
-  console.log(`  Communications loaded: ${communications.length}`);
-  console.log(`  Email templates loaded: ${emailTemplates.length}`);
-  console.log(`=============================================================`);
-});
+// Startup health check and server initialization
+async function startServer() {
+  console.log('Performing startup connectivity checks...');
+  
+  const pgHealthy = await db.checkHealth();
+  const valkeyHealthy = await cache.checkHealth();
+  
+  if (!pgHealthy) {
+    console.error('CRITICAL: Failed to connect to PostgreSQL. Aborting server startup.');
+    process.exit(1);
+  }
+  
+  if (!valkeyHealthy) {
+    console.error('CRITICAL: Failed to connect to Valkey. Aborting server startup.');
+    process.exit(1);
+  }
+  
+  console.log('All connectivity checks passed successfully.');
+  
+  const server = app.listen(PORT, () => {
+    console.log(`=============================================================`);
+    console.log(`  Kiinteistö-Agent Voice + Email POC Running At: http://localhost:${PORT}`);
+    console.log(`=============================================================`);
+  });
+  
+  // Graceful shutdown
+  const shutdown = async (signal) => {
+    console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
+    
+    server.close(() => {
+      console.log('HTTP server closed.');
+    });
+    
+    try {
+      await cache.close();
+      await db.close();
+      console.log('Graceful shutdown completed successfully.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error during graceful shutdown:', err);
+      process.exit(1);
+    }
+  };
+  
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
+
+startServer();

@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +18,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "jose": "^5.9.6"
+    "jose": "^5.9.6",
+    "pg": "^8.11.3",
+    "ioredis": "^5.3.2"
   }
 }
