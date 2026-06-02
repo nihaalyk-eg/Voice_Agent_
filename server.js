@@ -547,7 +547,7 @@ app.post('/api/work-orders', async (req, res) => {
 function buildLanguageBlock(language, isKnownCaller) {
   const configs = {
     'Finnish': {
-      instruction: 'Start and conduct this call in Finnish (Suomi). If the caller explicitly requests a different language at any point, switch to that language immediately and continue in it for the rest of the call.',
+      instruction: 'Start and conduct this call in Finnish (Suomi). If the caller requests a different language at any point, apply ABSOLUTE RULE 7 — switch permanently and never revert.',
       greetingKnown:   'Hyvää huomenta, [NAME]! Täällä on Zora, kiinteistöpalvelusi asiakaspalvelija. Miten voin auttaa sinua tänään?',
       greetingUnknown: 'Hyvää päivää! Täällä Zora, kiinteistöhuollon tuki. Voin kirjata vikailmoituksia, järjestää ovien avauksia, avainlainoja tai siirtää sinut hätäpalveluihin. Miten voin auttaa?',
       confirmQuestion: 'Onko kaikki tämä oikein?',
@@ -556,7 +556,7 @@ function buildLanguageBlock(language, isKnownCaller) {
       wrapUp:          'Kiitos soitostasi. Hyvää päivänjatkoa!'
     },
     'Swedish': {
-      instruction: 'Start and conduct this call in Swedish (Svenska). If the caller explicitly requests a different language at any point, switch to that language immediately and continue in it for the rest of the call.',
+      instruction: 'Start and conduct this call in Swedish (Svenska). If the caller requests a different language at any point, apply ABSOLUTE RULE 7 — switch permanently and never revert.',
       greetingKnown:   'God morgon, [NAME]! Det är Zora, din fastighetsassistent. Hur kan jag hjälpa dig idag?',
       greetingUnknown: 'Välkommen till fastighetsunderhållet. Jag heter Zora. Hur kan jag hjälpa dig?',
       confirmQuestion: 'Stämmer allt detta?',
@@ -565,7 +565,7 @@ function buildLanguageBlock(language, isKnownCaller) {
       wrapUp:          'Tack för ditt samtal. Ha en bra dag!'
     },
     'English': {
-      instruction: 'Conduct this call in English.',
+      instruction: 'Conduct this call in English. If the caller requests a different language at any point, apply ABSOLUTE RULE 7 — switch permanently and never revert.',
       greetingKnown:   'Good morning, [NAME]! This is Zora, your property assistant. How can I help you today?',
       greetingUnknown: "Welcome to Property Maintenance Support. I'm Zora. How can I help?",
       confirmQuestion: 'Is all of this correct?',
@@ -585,7 +585,7 @@ Listen carefully to the caller's FIRST utterance to detect their language.
 - If they speak Swedish → respond ENTIRELY in Swedish for the rest of the call
 - If they speak English → respond in English
 - If language is unclear → default to Finnish (this is a Finnish property management service)
-Once you detect the language, continue in it — but if the caller explicitly requests a different language, switch immediately.
+Once you detect the language, continue in it for the entire call. If the caller explicitly requests a different language, apply ABSOLUTE RULE 7 — switch permanently and never revert, not even for a single word.
 Use these greetings based on detected language:
   Finnish: "${configs['Finnish'].greetingUnknown}"
   Swedish: "${configs['Swedish'].greetingUnknown}"
@@ -595,12 +595,37 @@ Remain conversational and keep responses short — this is a voice call.
   }
 
   return `
-LANGUAGE — IMPORTANT: ${cfg.instruction}
-- Greeting (replace [NAME] with caller's name): "${cfg.greetingKnown}"
-- Confirmation question: "${cfg.confirmQuestion}"
-- Master key question: "${cfg.masterKeyAsk}"
-- Urgent dispatch line: "${cfg.urgentSuffix}"
-- Wrap-up: "${cfg.wrapUp}"
+LANGUAGE — DEFAULT: ${cfg.instruction}
+
+BEFORE EVERY RESPONSE: ask yourself "Has the caller requested a language switch at any point in this call?" If yes → respond ONLY in that language. RULE 7 overrides everything below.
+
+Phrase reference — use the column that matches the ACTIVE language (default OR switched):
+
+  Greeting (replace [NAME] with caller's name):
+    Finnish  : "Hyvää huomenta, [NAME]! Täällä on Zora, kiinteistöpalvelusi asiakaspalvelija. Miten voin auttaa sinua tänään?"
+    Swedish  : "God morgon, [NAME]! Det är Zora, din fastighetsassistent. Hur kan jag hjälpa dig idag?"
+    English  : "Good morning, [NAME]! This is Zora, your property maintenance assistant. How can I help you today?"
+
+  Confirmation question:
+    Finnish  : "Onko kaikki tämä oikein?"
+    Swedish  : "Stämmer allt detta?"
+    English  : "Is all of this correct?"
+
+  Master key question:
+    Finnish  : "Saako isäntäavainta käyttää asuntoosi pääsyyn?"
+    Swedish  : "Får vi använda huvudnyckeln för att komma in i din lägenhet?"
+    English  : "Do you permit use of the master key to enter your apartment?"
+
+  Urgent dispatch line:
+    Finnish  : "Lähetän teknikon kahden tunnin kuluessa."
+    Swedish  : "En tekniker skickas inom två timmar."
+    English  : "A technician will be dispatched within two hours."
+
+  Wrap-up:
+    Finnish  : "Kiitos soitostasi. Hyvää päivänjatkoa!"
+    Swedish  : "Tack för ditt samtal. Ha en bra dag!"
+    English  : "Thank you for calling. Have a great day!"
+
 Remain conversational and keep responses short — this is a voice call.
 `;
 }
@@ -675,19 +700,20 @@ ${customerContext}
 ABSOLUTE RULES — NEVER BREAK THESE
 ══════════════════════════════════════════════════════
 1. SILENT START: Your very first action is get_customer_profile. Say zero words until the result returns. No "one moment", no narration, nothing.
-2. ONE QUESTION PER TURN: Ask one question, stop, wait. Never ask two questions in the same response.
+2. ONE UTTERANCE PER TURN: Every turn is a single, continuous spoken response — one audio item. Never open with a transition phrase ("Alright", "Got it", "Let me ask you", "So") before asking your question; go directly to the question. Never split a thought across two output items. If you want to acknowledge AND ask, combine them into one sentence.
 3. CONFIRMATION IS A HARD GATE: create_work_order CANNOT be called until the caller speaks an explicit confirmation word (listed in Step 3). Implied agreement, nodding along, or saying "okay" to a question does not count.
 4. FIXED TOOL ORDER: get_customer_profile → get_maintenance_person → gather info → confirmed → create_work_order → send_sms_confirmation → save_call_transcript → end_call. Never skip or reorder.
 5. Never describe what you are doing internally. Never say "checking", "looking up", "one moment".
 6. Keep every spoken response short. This is a phone call.
+7. LANGUAGE LOCK — PERMANENT AND IRREVERSIBLE: The moment a caller requests a specific language ("speak English", "på svenska", "englanniksi" etc.), you MUST switch to that language for every single response for the rest of the call. This overrides your initial language instruction completely. You must NEVER revert to the previous language — not even partially, not even for one word. Treat the caller's language request as a permanent reset of the session language.
 
 ══════════════════════════════════════════════════════
 CALL TYPE — determine this before anything else
 ══════════════════════════════════════════════════════
 FAULT REPORT     → follow all 8 steps below exactly
-DOOR OPENING     → collect address + apartment, verbal confirmation, create_work_order (call_category: door_opening)
-KEY LOAN         → collect address + apartment + loan duration, verbal confirmation, create_work_order (call_category: key_loan)
-EMERGENCY        → fire / active flooding / gas / electrical hazard → call escalate_to_operator immediately, no other steps
+DOOR OPENING     → collect address + apartment → verbal confirmation (same confirmation words as Step 3) → create_work_order (call_category: door_opening) → send_sms_confirmation → save_call_transcript → farewell → end_call
+KEY LOAN         → collect address + apartment + loan duration → verbal confirmation (same confirmation words as Step 3) → create_work_order (call_category: key_loan) → send_sms_confirmation → save_call_transcript → farewell → end_call
+EMERGENCY        → fire / active flooding / gas / electrical hazard → escalate_to_operator immediately → save_call_transcript (call_category: urgent_transfer) → end_call
 
 ══════════════════════════════════════════════════════
 FAULT REPORT FLOW — 8 STEPS, FIXED ORDER, NO SKIPPING
@@ -696,7 +722,7 @@ FAULT REPORT FLOW — 8 STEPS, FIXED ORDER, NO SKIPPING
 [STEP 0 — SILENT LOOKUP]
 Call get_customer_profile(${callerPhone}). Speak nothing.
   → Found: call get_maintenance_person(address) silently too. Then go to Step 1.
-  → Not found: go to Step 1, collect name/address/apartment during the conversation.
+  → Not found: go to Step 1. Once you learn their address during Step 2, silently call get_maintenance_person(address) before the confirmation gate.
 
 [STEP 1 — GREET]
 One sentence. Use their name if known. Mention you handle maintenance, door openings, and key loans.
@@ -708,8 +734,8 @@ One sentence. Use their name if known. Mention you handle maintenance, door open
 2d. "Any special access notes — gate code, pet, or specific availability?" (skip if already in their profile)
 
 [STEP 3 — CONFIRMATION GATE ← YOU CANNOT PASS THIS WITHOUT A CONFIRMATION WORD]
-Read back a clear summary: address, apartment, issue, master key answer, contact phone.
-Then ask: "Is all of this correct?"
+In ONE single spoken turn (no preamble, no "let me repeat" opener), read the full summary then immediately ask the confirmation question.
+Format: "[Address], apartment [X]. [Issue]. Master key: [yes/no]. Contact: [phone]. Is all of this correct?"
 
 Wait silently. You must hear ONE of these confirmation words before proceeding to Step 4:
   Finnish : joo / kyllä / kyllä on / juu / täsmälleen / se on oikein / oikein
@@ -732,7 +758,7 @@ Tell the caller their ticket number, the technician's name, and when they will a
 
 [STEP 6 — ANYTHING ELSE?]
 "Is there anything else I can help you with today?"
-  → Yes: restart from Step 2 for the new issue.
+  → Yes: restart from Step 0 (silently re-run get_maintenance_person if the address differs), then continue from Step 2 for the new issue.
   → No: proceed to Step 7.
 
 [STEP 7 — SAVE TRANSCRIPT]
@@ -1030,7 +1056,16 @@ ${languageBlock}`;
 // 5. Update a work order (status or details)
 app.put('/api/work-orders/:id', async (req, res) => {
   const { id } = req.params;
-  const { status, urgency_level } = req.body;
+  const { 
+    status, 
+    urgency_level, 
+    property_address, 
+    apartment_number, 
+    technician, 
+    technician_phone, 
+    scheduled_time, 
+    issue_description 
+  } = req.body;
   
   try {
     // Fetch current work order first to get existing scheduled_time/urgency
@@ -1042,9 +1077,9 @@ app.put('/api/work-orders/:id', async (req, res) => {
     const currentWo = currentWoRes.rows[0];
     let newStatus = status || currentWo.status;
     let newUrgency = urgency_level || currentWo.urgency_level;
-    let newScheduledTime = currentWo.scheduled_time;
+    let newScheduledTime = scheduled_time || currentWo.scheduled_time;
     
-    if (urgency_level && urgency_level.toLowerCase() !== currentWo.urgency_level.toLowerCase()) {
+    if (urgency_level && !scheduled_time && urgency_level.toLowerCase() !== currentWo.urgency_level.toLowerCase()) {
       if (urgency_level.toLowerCase() === 'urgent') {
         newScheduledTime = 'Immediate (Within 2 Hours)';
       } else {
@@ -1054,12 +1089,35 @@ app.put('/api/work-orders/:id', async (req, res) => {
       }
     }
     
+    const newPropertyAddress = property_address || currentWo.property_address;
+    const newApartmentNumber = apartment_number || currentWo.apartment_number;
+    const newTechnician = technician !== undefined ? technician : currentWo.technician;
+    const newTechnicianPhone = technician_phone !== undefined ? technician_phone : currentWo.technician_phone;
+    const newIssueDescription = issue_description || currentWo.issue_description;
+    
     const updateRes = await db.query(`
       UPDATE work_orders
-      SET status = $1, urgency_level = $2, scheduled_time = $3
-      WHERE id = $4
+      SET status = $1, 
+          urgency_level = $2, 
+          scheduled_time = $3, 
+          property_address = $4, 
+          apartment_number = $5, 
+          technician = $6, 
+          technician_phone = $7, 
+          issue_description = $8
+      WHERE id = $9
       RETURNING *
-    `, [newStatus, newUrgency, newScheduledTime, id]);
+    `, [
+      newStatus, 
+      newUrgency, 
+      newScheduledTime, 
+      newPropertyAddress, 
+      newApartmentNumber, 
+      newTechnician, 
+      newTechnicianPhone, 
+      newIssueDescription, 
+      id
+    ]);
     
     // Invalidate cache
     await cache.invalidate(cacheKeys.WORK_ORDERS_LIST);

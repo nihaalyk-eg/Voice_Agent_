@@ -317,11 +317,9 @@ The agent decides when to hang up — no hardcoded phrase matching or timers:
 5. `cleanupCall()` resets `endCallAfterSpeech` and clears any pending timer
 
 **Real-time Cost Tracking:**
-Token pricing baked into `app.js`:
-- Text input: $0.000005 / token
-- Text output: $0.00002 / token
-- Audio input: $0.00004 / token
-- Audio output: $0.00008 / token
+Token pricing baked into `VoiceConsoleApp.jsx`:
+- Input tokens (Text & Audio): $0.000004 / token ($4 per 1M)
+- Output tokens (Text & Audio): $0.000024 / token ($24 per 1M)
 
 Updated live on every server event.
 

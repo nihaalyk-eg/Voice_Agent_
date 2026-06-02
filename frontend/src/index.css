@@ -1353,11 +1353,13 @@ body {
    Email Agent Panel (Tab 2)
    ========================================================================== */
 .email-agent-layout {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
   gap: 24px;
   padding: 24px 32px;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 .email-form-panel {
@@ -1413,22 +1415,23 @@ body {
   gap: 6px;
 }
 .btn-email-template {
-  background: rgba(139, 92, 246, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   padding: 5px 10px;
   font-family: inherit;
   font-size: 11px;
   font-weight: 600;
-  color: var(--violet-glow);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s var(--ease-premium);
 }
 .btn-email-template:hover {
-  background: rgba(139, 92, 246, 0.2);
-  border-color: rgba(139, 92, 246, 0.4);
+  background: var(--bg-muted);
+  border-color: hsl(240 5.9% 75%);
+  color: var(--text-primary);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
 /* Email Form */
@@ -2241,21 +2244,21 @@ body {
 }
 .comms-transcript-content {
   margin-top: 8px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  padding: 16px;
+  background: var(--bg-muted, #f3f4f6);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 300px;
+  gap: 12px;
+  max-height: 350px;
   overflow-y: auto;
 }
 
 .transcript-msg {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .transcript-msg-agent {
   align-items: flex-start;
@@ -2278,17 +2281,18 @@ body {
 .tm-text {
   font-size: 12px;
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
-  padding: 6px 10px;
-  border-radius: 8px;
+  background: var(--bg-card, #ffffff);
+  padding: 8px 12px;
+  border-radius: 10px;
   max-width: 85%;
   line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 .transcript-msg-agent .tm-text {
-  border: 1px solid rgba(139, 92, 246, 0.1);
+  border: 1px solid var(--border-light);
 }
 .transcript-msg-user .tm-text {
-  border: 1px solid rgba(6, 182, 212, 0.1);
+  border: 1px solid var(--border-light);
 }
 
 /* SMS / Email specific content styles */
@@ -2809,10 +2813,10 @@ body {
 }
 
 .customer-card:hover {
-  background: rgba(18, 24, 38, 0.85);
-  border-color: rgba(255, 255, 255, 0.12);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  background: var(--bg-card) !important;
+  border-color: var(--violet-glow) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
 }
 
 .customer-card-header {
@@ -3399,6 +3403,12 @@ body {
   transform: translateY(0);
 }
 
+.observability-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+}
+
 /* ==========================================================================
    Responsive Upgrades (Mobile & Tablet Layouts)
    ========================================================================== */
@@ -3559,7 +3569,7 @@ body {
 
   /* 3. Email Agent responsive stacks */
   .email-agent-layout {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     overflow-y: auto;
     height: 100%;
     padding: 16px 20px;
@@ -3575,7 +3585,7 @@ body {
 
   /* 4. Observability dashboard responsive stacks */
   /* Split KPI summary cards grid */
-  .observability-kpi-grid {
+  .obs-metrics-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
   
@@ -3628,7 +3638,7 @@ body {
 
 @media screen and (max-width: 600px) {
   /* 1-column layout for KPI cards on small mobile screens */
-  .observability-kpi-grid {
+  .obs-metrics-grid {
     grid-template-columns: 1fr !important;
   }
 }

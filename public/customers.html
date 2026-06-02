@@ -7,90 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script type="module" crossorigin src="/assets/customers-Dj2tWV1-.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/index-DlOxMfG-.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-N1-N0fKw.css">
 </head>
 <body>
-  <div class="bg-glow spot-1"></div>
-  <div class="bg-glow spot-2"></div>
-
-  <div class="app-layout">
-    <aside class="sidebar-nav">
-      <div class="sidebar-brand">
-        <div class="logo-mark zora-logo"><i class="fa-solid fa-bolt"></i></div>
-        <span class="sidebar-brand-text zora-wordmark">Zora</span>
-      </div>
-      <nav class="sidebar-links">
-        <a href="/" class="sidebar-link"><i class="fa-solid fa-phone-volume"></i><span>Voice Agent</span></a>
-        <a href="/email" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
-        <div class="sidebar-group">
-          <button class="sidebar-group-trigger active open" id="admin-group-trigger" onclick="toggleAdminGroup()">
-            <i class="fa-solid fa-shield-halved group-icon"></i>
-            <span>Admin</span>
-            <i class="fa-solid fa-chevron-down sidebar-group-chevron"></i>
-          </button>
-          <div class="sidebar-sub-links open" id="admin-sub-links">
-            <a href="/communications" class="sidebar-sub-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
-            <a href="/customers" class="sidebar-sub-link active"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-            <a href="/work-orders" class="sidebar-sub-link"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
-          </div>
-        </div>
-        <a href="/observability" class="sidebar-link"><i class="fa-solid fa-chart-line"></i><span>Observability</span></a>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <div class="sidebar-user-avatar" id="sidebar-user-avatar">?</div>
-          <div class="sidebar-user-info">
-            <div class="sidebar-user-name" id="sidebar-user-name">Loading...</div>
-            <div class="sidebar-user-role">Zora Agent</div>
-          </div>
-        </div>
-        <button class="btn-sidebar-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
-      </div>
-    </aside>
-
-    <div class="page-main">
-      <div class="app-container" style="flex-direction:column;">
-        <header class="page-header">
-          <div class="brand">
-            <div class="logo-mark" style="background:linear-gradient(135deg,var(--cyan-glow),var(--cyan-muted));box-shadow:0 4px 20px rgba(6,182,212,0.3);">
-              <i class="fa-solid fa-users"></i>
-            </div>
-            <div>
-              <h1>Customer Directory</h1>
-              <p class="subtitle">Zora — Registered residents across all properties</p>
-            </div>
-          </div>
-        </header>
-
-        <div class="customers-layout">
-          <div class="customers-toolbar">
-            <div class="search-input-wrap">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" class="search-input" id="customer-search" placeholder="Search by name, phone, or address..." oninput="handleSearch(this.value)">
-            </div>
-            <span class="customer-count" id="customer-count">Loading...</span>
-          </div>
-          <div id="customers-grid" class="customers-grid">
-            <div class="customers-empty">
-              <i class="fa-solid fa-circle-notch fa-spin"></i>
-              <p>Loading customers...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://egauth.cto.aks.egdev.eu/js/keycloak.js"></script>
-  <script src="shared.js"></script>
-  <script>
-    function toggleAdminGroup() {
-      const t = document.getElementById('admin-group-trigger');
-      const s = document.getElementById('admin-sub-links');
-      t.classList.toggle('open'); s.classList.toggle('open');
-    }
-  </script>
-  <script src="customers.js"></script>
+  <div id="root"></div>
 </body>
 </html>

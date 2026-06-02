@@ -7,114 +7,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script type="module" crossorigin src="/assets/workOrders-BPppA6Y1.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/index-DlOxMfG-.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-N1-N0fKw.css">
 </head>
 <body>
-  <div class="bg-glow spot-1"></div>
-  <div class="bg-glow spot-2"></div>
-
-  <div class="app-layout">
-    <aside class="sidebar-nav">
-      <div class="sidebar-brand">
-        <div class="logo-mark zora-logo"><i class="fa-solid fa-bolt"></i></div>
-        <span class="sidebar-brand-text zora-wordmark">Zora</span>
-      </div>
-      <nav class="sidebar-links">
-        <a href="/" class="sidebar-link"><i class="fa-solid fa-phone-volume"></i><span>Voice Agent</span></a>
-        <a href="/email" class="sidebar-link"><i class="fa-solid fa-envelope-open-text"></i><span>Email Agent</span></a>
-        <div class="sidebar-group">
-          <button class="sidebar-group-trigger active open" id="admin-group-trigger" onclick="toggleAdminGroup()">
-            <i class="fa-solid fa-shield-halved group-icon"></i>
-            <span>Admin</span>
-            <i class="fa-solid fa-chevron-down sidebar-group-chevron"></i>
-          </button>
-          <div class="sidebar-sub-links open" id="admin-sub-links">
-            <a href="/communications" class="sidebar-sub-link"><i class="fa-solid fa-clock-rotate-left"></i><span>Communications</span></a>
-            <a href="/customers" class="sidebar-sub-link"><i class="fa-solid fa-users"></i><span>Customers</span></a>
-            <a href="/work-orders" class="sidebar-sub-link active"><i class="fa-solid fa-receipt"></i><span>Work Orders</span></a>
-          </div>
-        </div>
-        <a href="/observability" class="sidebar-link"><i class="fa-solid fa-chart-line"></i><span>Observability</span></a>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="sidebar-user">
-          <div class="sidebar-user-avatar" id="sidebar-user-avatar">?</div>
-          <div class="sidebar-user-info">
-            <div class="sidebar-user-name" id="sidebar-user-name">Loading...</div>
-            <div class="sidebar-user-role">Zora Agent</div>
-          </div>
-        </div>
-        <button class="btn-sidebar-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
-      </div>
-    </aside>
-
-    <div class="page-main">
-      <div class="app-container" style="flex-direction: column;">
-        <header class="page-header">
-          <div class="brand">
-            <div class="logo-mark erp-logo"><i class="fa-solid fa-receipt"></i></div>
-            <div>
-              <h1>Work Orders</h1>
-              <p class="subtitle">MaintTrac™ ERP — Maintenance & Dispatch</p>
-            </div>
-          </div>
-          <div class="erp-sync-status">
-            <span class="pulse-green"></span>
-            <span id="wo-count">0 Active</span>
-          </div>
-        </header>
-
-        <div class="erp-grid" style="flex: 1; padding: 24px 32px; overflow: hidden;">
-          <!-- Sidebar: Technicians + Properties -->
-          <div class="erp-sidebar">
-            <div class="erp-card scrollable-card">
-              <h3 class="erp-card-title"><i class="fa-solid fa-user-gear"></i> Active Technicians</h3>
-              <ul id="tech-list" class="tech-list">
-                <li class="loading-item">Loading...</li>
-              </ul>
-            </div>
-            <div class="erp-card scrollable-card">
-              <h3 class="erp-card-title"><i class="fa-solid fa-building"></i> Registered Properties</h3>
-              <ul id="property-list" class="property-list">
-                <li class="loading-item">Loading...</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="splitter splitter-sub" id="splitter-sidebar-board"></div>
-
-          <!-- Main Board -->
-          <div class="erp-main-board">
-            <div class="erp-card main-board-card">
-              <div class="board-header">
-                <h3 class="erp-card-title"><i class="fa-solid fa-receipt"></i> All Work Orders</h3>
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <span id="wo-badge" class="badge-count">0</span>
-                </div>
-              </div>
-              <div id="work-orders-board" class="work-orders-board">
-                <div class="loading-placeholder">
-                  <i class="fa-solid fa-circle-notch fa-spin"></i>
-                  <p>Loading work orders...</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://egauth.cto.aks.egdev.eu/js/keycloak.js"></script>
-  <script src="shared.js"></script>
-  <script>
-    function toggleAdminGroup() {
-      const t = document.getElementById('admin-group-trigger');
-      const s = document.getElementById('admin-sub-links');
-      t.classList.toggle('open'); s.classList.toggle('open');
-    }
-  </script>
-  <script src="work-orders.js"></script>
+  <div id="root"></div>
 </body>
 </html>
