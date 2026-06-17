@@ -9,6 +9,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
+        landing: resolve(__dirname, 'landing.html'),
         main: resolve(__dirname, 'index.html'),
         email: resolve(__dirname, 'email.html'),
         workOrders: resolve(__dirname, 'work-orders.html'),

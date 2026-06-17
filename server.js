@@ -1554,12 +1554,12 @@ app.get('/communications', (_, res) => res.sendFile(path.join(__dirname, 'public
 app.get('/customers',      (_, res) => res.sendFile(path.join(__dirname, 'public', 'customers.html')));
 app.get('/observability',  (_, res) => res.sendFile(path.join(__dirname, 'public', 'observability.html')));
 
-// Root redirect — default to voice agent on main branch
-app.get('/', (_, res) => res.redirect('/voice'));
+// Root serves the landing page
+app.get('/', (_, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 
-// Fallback for unknown routes
+// Fallback to landing for unknown routes
 app.get('*', (req, res) => {
-  res.redirect('/voice');
+  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 
 // Startup health check and server initialization
