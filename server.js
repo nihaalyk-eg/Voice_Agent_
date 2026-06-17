@@ -1547,15 +1547,19 @@ app.get('/api/observability/stats', async (req, res) => {
 });
 
 // Clean URL routes — serve pages without .html extension
+app.get('/voice',          (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/email',          (_, res) => res.sendFile(path.join(__dirname, 'public', 'email.html')));
 app.get('/work-orders',    (_, res) => res.sendFile(path.join(__dirname, 'public', 'work-orders.html')));
 app.get('/communications', (_, res) => res.sendFile(path.join(__dirname, 'public', 'communications.html')));
 app.get('/customers',      (_, res) => res.sendFile(path.join(__dirname, 'public', 'customers.html')));
 app.get('/observability',  (_, res) => res.sendFile(path.join(__dirname, 'public', 'observability.html')));
 
-// Fallback to serve index.html for undefined frontend routes
+// Root redirect — default to voice agent on main branch
+app.get('/', (_, res) => res.redirect('/voice'));
+
+// Fallback for unknown routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.redirect('/voice');
 });
 
 // Startup health check and server initialization

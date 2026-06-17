@@ -30,7 +30,7 @@ export const Sidebar = () => {
       </div>
       
       <nav className="sidebar-links">
-        <a href="/" className={`sidebar-link ${isActive(['/']) ? 'active' : ''}`}>
+        <a href="/voice" className={`sidebar-link ${isActive(['/voice']) ? 'active' : ''}`}>
           <i className="fa-solid fa-phone-volume"></i>
           <span>Voice Agent</span>
         </a>
