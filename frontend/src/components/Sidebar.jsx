@@ -30,15 +30,19 @@ export const Sidebar = () => {
       </div>
       
       <nav className="sidebar-links">
-        <a href="/voice" className={`sidebar-link ${isActive(['/voice']) ? 'active' : ''}`}>
-          <i className="fa-solid fa-phone-volume"></i>
-          <span>Voice Agent</span>
-        </a>
-        
-        <a href="/email" className={`sidebar-link ${isActive(['/email']) ? 'active' : ''}`}>
-          <i className="fa-solid fa-envelope-open-text"></i>
-          <span>Email Agent</span>
-        </a>
+        {!currentPath.startsWith('/email') && (
+          <a href="/voice" className={`sidebar-link ${isActive(['/voice']) ? 'active' : ''}`}>
+            <i className="fa-solid fa-phone-volume"></i>
+            <span>Voice Agent</span>
+          </a>
+        )}
+
+        {!currentPath.startsWith('/voice') && (
+          <a href="/email" className={`sidebar-link ${isActive(['/email']) ? 'active' : ''}`}>
+            <i className="fa-solid fa-envelope-open-text"></i>
+            <span>Email Agent</span>
+          </a>
+        )}
         
         {/* Admin Accordion Group */}
         <div className="sidebar-group">
