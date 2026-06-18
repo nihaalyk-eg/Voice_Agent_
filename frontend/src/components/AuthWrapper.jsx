@@ -76,7 +76,7 @@ export const AuthWrapper = ({ children }) => {
 
     const initPromise = keycloak.init({
       onLoad: 'login-required',
-      redirectUri: `${window.location.origin}/`,
+      redirectUri: 'http://localhost:3000/',
       token: cachedToken || undefined,
       refreshToken: cachedRefreshToken || undefined,
       idToken: cachedIdToken || undefined,
