@@ -35,7 +35,7 @@ app.use(cors());
 app.use(express.json());
 
 // Serve static files from /public directory
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+app.use(express.static(path.join(__dirname, 'public'), { index: false, dotfiles: 'ignore' }));
 
 // Unauthenticated health check endpoint (defined BEFORE auth middleware)
 app.get('/health', async (req, res) => {
@@ -1506,7 +1506,7 @@ app.get('/api/observability/stats', async (req, res) => {
     const voiceOutputAudio = parseInt(voiceStats.total_output_audio_tokens) || 0;
 
     // 2. Email Intake count and cost (static cost of $0.015 per LLM prompt run)
-    const emailQuery = await db.query("SELECT COUNT(*) FROM communications WHERE type='email_ingest'");
+    const emailQuery = await db.query("SELECT COUNT(*) FROM communications WHERE type='email_intake'");
     const totalEmails = parseInt(emailQuery.rows[0].count) || 0;
     const totalEmailCost = totalEmails * 0.015; // Structured output OpenAI completion cost
 
@@ -1557,8 +1557,9 @@ app.get('/observability',  (_, res) => res.sendFile(path.join(__dirname, 'public
 // Root serves the landing page
 app.get('/', (_, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
 
-// Fallback to landing for unknown routes
+// Fallback: 404 for unknown API routes, landing page for everything else
 app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, 'public', 'landing.html'));
 });
 
