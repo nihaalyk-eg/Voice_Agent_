@@ -22,12 +22,12 @@ export const Sidebar = () => {
 
   return (
     <aside className="sidebar-nav">
-      <div className="sidebar-brand">
+      <a href="/" className="sidebar-brand" style={{ textDecoration: 'none' }}>
         <div className="logo-mark zora-logo">
           <i className="fa-solid fa-bolt"></i>
         </div>
         <span className="sidebar-brand-text zora-wordmark">Zora</span>
-      </div>
+      </a>
       
       <nav className="sidebar-links">
         {!currentPath.startsWith('/email') && (
