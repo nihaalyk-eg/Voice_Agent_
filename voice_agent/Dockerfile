@@ -20,8 +20,9 @@ WORKDIR /app
 # Bring in the pre-built venv from builder
 COPY --from=builder /app/.venv ./.venv
 
-# Copy application source (no .venv, no bench data, no __pycache__)
+# Copy backend source and frontend
 COPY *.py ./
+COPY frontend/ ./frontend/
 
 # Benchmark data goes here — mount a volume at /app/data for persistence
 RUN mkdir -p /app/data
@@ -31,8 +32,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8080
 
-# Default: run the management UI
-# Override CMD to run a specific agent:
-#   docker run ... python agent.py dev
-#   docker run ... python agent_voice_live.py dev
-CMD ["python", "ui_server.py"]
+CMD ["python", "server.py"]
