@@ -2,7 +2,9 @@
 __pycache__/
 *.pyc
 *.jsonl
-*.json
 .env
-__pycache__/
 data/
+README.md
+Makefile
+.env.example
+docker-compose*.yml

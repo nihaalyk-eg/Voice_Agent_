@@ -34,21 +34,24 @@ VOICE_LIVE_URL = (
 SAMPLE_RATE = 24_000
 CHANNELS    = 1
 
+_INSTRUCTIONS = os.environ.get(
+    "AGENT_INSTRUCTIONS",
+    "You are a helpful, concise voice assistant. Keep every response to two or three sentences.",
+)
+_VOICE = os.environ.get("AGENT_VOICE", "en-US-AvaNeural")
+
 SESSION_CONFIG = {
     "type": "session.update",
     "session": {
         "modalities": ["text", "audio"],
-        "instructions": (
-            "You are a helpful, concise voice assistant. "
-            "Keep every response to two or three sentences."
-        ),
+        "instructions": _INSTRUCTIONS,
         "input_audio_format":  "pcm16",
         "output_audio_format": "pcm16",
         "input_audio_transcription": {"model": "gpt-4o-transcribe", "language": "en"},
         "turn_detection": {"type": "semantic_vad", "eagerness": "medium"},
         "input_audio_noise_reduction":   {"type": "azure_deep_noise_suppression"},
         "input_audio_echo_cancellation": {"type": "server_echo_cancellation"},
-        "voice": {"name": "en-US-AvaNeural", "type": "azure-standard"},
+        "voice": {"name": _VOICE, "type": "azure-standard"},
     },
 }
 

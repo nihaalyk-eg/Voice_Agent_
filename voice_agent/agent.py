@@ -10,6 +10,11 @@ from livekit.plugins import openai as lk_openai
 from langfuse_setup import setup_langfuse
 
 MAX_HISTORY_MESSAGES = 10
+INSTRUCTIONS = os.environ.get(
+    "AGENT_INSTRUCTIONS",
+    "You are a helpful, concise voice assistant. Keep responses short and conversational — two or three sentences max.",
+)
+VOICE = os.environ.get("AGENT_VOICE", "en-US-JennyNeural")
 
 
 class VoiceAgent(Agent):
@@ -49,18 +54,13 @@ async def entrypoint(ctx: JobContext) -> None:
         tts=azure.TTS(
             speech_key=os.environ["AZURE_SPEECH_KEY"],
             speech_region=os.environ["AZURE_SPEECH_REGION"],
-            voice="en-US-JennyNeural",
+            voice=VOICE,
         ),
     )
 
     await session.start(
         room=ctx.room,
-        agent=VoiceAgent(
-            instructions=(
-                "You are a helpful, concise voice assistant. "
-                "Keep responses short and conversational — two or three sentences max."
-            ),
-        ),
+        agent=VoiceAgent(instructions=INSTRUCTIONS),
     )
 
     done = asyncio.Event()
