@@ -1,10 +1,8 @@
 .PHONY: setup dev docker docker-prod build-amd64 stop logs
 
-# First-time setup: create .env and install dependencies
+# One-command setup: checks prereqs, prompts for credentials, installs, launches
 setup:
-	@[ -f .env ] || (cp .env.example .env && echo "✓ .env created — fill in your credentials")
-	uv sync
-	@echo "✓ Dependencies installed. Run 'make dev' to start."
+	@bash setup.sh
 
 # Run everything natively (Mac local dev)
 dev:
