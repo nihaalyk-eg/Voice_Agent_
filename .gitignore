@@ -28,3 +28,11 @@ Thumbs.db
 # Docker volumes (if stored locally)
 pgdata/
 valkeydata/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Build output
+voice_agent/public/

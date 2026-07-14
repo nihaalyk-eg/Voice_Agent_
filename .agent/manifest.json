@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "id": "zora-voice-agent",
+  "name": "Zora Voice Assistant",
+  "type": "livekit-voice",
+  "author": "POC Team",
+  "description": "Real-time WebRTC AI Voice Agent",
+  "api": {
+    "type": "openapi",
+    "url": "/openapi.json"
+  },
+  "config_schema": {
+    "type": "object",
+    "properties": {
+      "language": { "type": "string" },
+      "voice": { "type": "string" },
+      "system_prompt": { "type": "string" }
+    }
+  }
+}
