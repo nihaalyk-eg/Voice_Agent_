@@ -1,0 +1,25 @@
+{
+  "name": "poc-voice-agent",
+  "version": "1.0.0",
+  "description": "POC Voice Agent using GPT-Realtime-2 WebRTC and a Live ERP Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js & npm run dev --prefix frontend",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down",
+    "db:migrate": "node db/migrate.js",
+    "db:seed": "node db/seed.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jose": "^5.9.6",
+    "pg": "^8.11.3",
+    "ioredis": "^5.3.2"
+  }
+}

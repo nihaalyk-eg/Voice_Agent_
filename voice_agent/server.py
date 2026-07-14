@@ -6,38 +6,49 @@ UI:  http://localhost:8080
 """
 
 import asyncio
+import base64
+import hashlib
 import json
 import os
 import signal
+import time
+import uuid
 from pathlib import Path
+from typing import Any
 
 import uvicorn
 from dotenv import load_dotenv, find_dotenv
-from fastapi import FastAPI
+from fastapi import Body, Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from livekit.api import LiveKitAPI, AccessToken, VideoGrants
 from livekit.protocol.agent_dispatch import RoomAgentDispatch
-from livekit.protocol.room import CreateRoomRequest, DeleteRoomRequest, ListRoomsRequest
+from livekit.protocol.room import CreateRoomRequest, DeleteRoomRequest
+from pydantic import BaseModel
 
 load_dotenv(find_dotenv())
 
 app = FastAPI()
+_bearer = HTTPBearer(auto_error=False)
 
-BASE_DIR  = Path(__file__).parent
-PYTHON    = BASE_DIR / ".venv" / "bin" / "python"
-ROOM      = "voice-room"
+BASE_DIR   = Path(__file__).parent
+PYTHON     = BASE_DIR / ".venv" / "bin" / "python"
+ROOM_PREFIX = "voice-room"
 LK_URL    = os.environ["LIVEKIT_URL"]
 LK_PUBLIC = os.environ.get("LIVEKIT_PUBLIC_URL", "ws://localhost:7880")
 LK_KEY    = os.environ["LIVEKIT_API_KEY"]
 LK_SECRET = os.environ["LIVEKIT_API_SECRET"]
 
+KEYCLOAK_URL   = os.environ.get("KEYCLOAK_URL",   "https://egauth.cto.aks.egdev.eu")
+KEYCLOAK_REALM = os.environ.get("KEYCLOAK_REALM", "EGAuthentication")
+
 AGENTS = {
     "pipeline": {
         "label":      "Pipeline",
         "subtitle":   "Azure STT → LLM → Azure TTS",
-        "model":      "gpt-5.4-mini",
+        "model":      "gpt-4.1-mini",
         "file":       "agent.py",
-        "bench_file": None,
+        "bench_file": "data/bench_pipeline.jsonl",
         "e2e_target": 5083,
         "color":      "#6366f1",
     },
@@ -61,11 +72,79 @@ AGENTS = {
     },
 }
 
-# ── State ───────────────────────────────────────────────────────────────────
+
+# ── Pydantic models ──────────────────────────────────────────────────────────
+class StartPayload(BaseModel):
+    voice:        str            = "en-US-JennyNeural"
+    language:     str            = "en-US"
+    proactive:    bool           = True
+    instructions: str | None     = None
+    agent_config: dict[str, Any] | None = None
+    cdb_mode:     bool           = False
+    caller_phone: str | None     = None
+
+
+# ── Auth: local JWT validation (expiry + issuer) cached until token expiry ───
+_token_cache: dict[str, float] = {}
+
+_EXPECTED_ISS = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}"
+
+
+def _validate_jwt(token: str) -> float:
+    """Decode JWT claims without signature verification; return exp timestamp."""
+    parts = token.split(".")
+    if len(parts) != 3:
+        raise PermissionError("Not a valid JWT")
+    try:
+        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(payload_b64))
+    except Exception as e:
+        raise PermissionError(f"JWT decode failed: {e}")
+
+    exp = claims.get("exp")
+    if exp is None or exp < time.time():
+        raise PermissionError("Token expired")
+
+    iss = claims.get("iss", "")
+    if iss != _EXPECTED_ISS:
+        raise PermissionError(f"Invalid issuer: {iss!r}")
+
+    return float(exp)
+
+
+async def auth(
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    token: str | None = Query(default=None),
+) -> None:
+    raw = (creds.credentials if creds else None) or token
+    if not raw:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    h = hashlib.sha256(raw.encode()).hexdigest()
+    now = time.time()
+    if _token_cache.get(h, 0) > now:
+        return
+
+    try:
+        exp = _validate_jwt(raw)
+    except PermissionError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    _token_cache[h] = exp
+    expired = [k for k, v in _token_cache.items() if v <= now]
+    for k in expired:
+        del _token_cache[k]
+
+
+# ── State ────────────────────────────────────────────────────────────────────
 _proc:          asyncio.subprocess.Process | None = None
 _tail_task:     asyncio.Task | None = None
 _current_id:    str | None = None
+_current_room:  str = ROOM_PREFIX
 _log_listeners: set[asyncio.Queue] = set()
+# Serializes start/stop so rapid double-clicks (or a stale request racing a new
+# one) can't interleave and corrupt _proc/_current_room/_current_id.
+_lifecycle_lock = asyncio.Lock()
 
 
 async def _broadcast(line: str) -> None:
@@ -124,61 +203,99 @@ async def _wait_for_worker(delay: float = 3.0) -> None:
     await asyncio.sleep(delay)
 
 
-async def _setup_room_dispatch() -> None:
+async def _setup_room_dispatch(room_name: str, previous_room: str | None) -> None:
+    # Each session gets a brand-new room name. Reusing one static room name across
+    # sessions raced with LiveKit's worker-deregistration on hangup: a stale
+    # (just-killed) worker could still look "available" to the server for a moment,
+    # so the fresh job got dispatched to a dead process and the agent never joined.
     async with LiveKitAPI(url=LK_URL, api_key=LK_KEY, api_secret=LK_SECRET) as api:
-        existing = await api.room.list_rooms(ListRoomsRequest())
-        if any(r.name == ROOM for r in existing.rooms):
-            await api.room.delete_room(DeleteRoomRequest(room=ROOM))
+        if previous_room:
+            try:
+                await api.room.delete_room(DeleteRoomRequest(room=previous_room))
+            except Exception:
+                pass
         await api.room.create_room(CreateRoomRequest(
-            name=ROOM,
+            name=room_name,
             empty_timeout=300,
             agents=[RoomAgentDispatch(agent_name="")],
         ))
-    await _broadcast(f"[ui] room '{ROOM}' ready — waiting for client to connect...")
+    await _broadcast(f"[ui] room '{room_name}' ready — waiting for client to connect...")
 
 
-# ── API ─────────────────────────────────────────────────────────────────────
+# ── API ──────────────────────────────────────────────────────────────────────
 @app.get("/agents")
-async def get_agents():
+async def get_agents(_auth=Depends(auth)):
     return AGENTS
 
 
 @app.post("/agent/start/{agent_id}")
-async def start_agent(agent_id: str):
-    global _proc, _current_id
+async def start_agent(
+    agent_id: str,
+    payload: StartPayload | None = Body(default=None),
+    _auth=Depends(auth),
+):
+    global _proc, _current_id, _current_room
     if agent_id not in AGENTS:
         return JSONResponse({"error": "unknown agent"}, status_code=400)
-    await _kill_agent()
-    info  = AGENTS[agent_id]
-    _proc = await asyncio.create_subprocess_exec(
-        str(PYTHON), info["file"], "dev",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-        cwd=BASE_DIR,
-        start_new_session=True,
-    )
-    _current_id = agent_id
-    _tail_task  = asyncio.create_task(_tail_process(_proc))
-    await _broadcast(f"[ui] started {info['label']} (PID {_proc.pid}) — waiting for registration...")
-    await _wait_for_worker()
-    await _setup_room_dispatch()
-    return {"status": "started", "agent": agent_id, "pid": _proc.pid}
+    if payload is None:
+        payload = StartPayload()
+
+    async with _lifecycle_lock:
+        await _kill_agent()
+        info = AGENTS[agent_id]
+
+        previous_room = _current_room
+        _current_room = f"{ROOM_PREFIX}-{uuid.uuid4().hex[:8]}"
+
+        env = {**os.environ}
+        env["AGENT_VOICE"]     = payload.voice
+        env["AGENT_LANGUAGE"]  = payload.language
+        env["AGENT_PROACTIVE"] = "1" if payload.proactive else "0"
+
+        if payload.agent_config:
+            env["AGENT_CONFIG"] = json.dumps(payload.agent_config)
+            sp = payload.agent_config.get("system_prompt")
+            if sp:
+                env["AGENT_INSTRUCTIONS"] = sp
+        elif payload.instructions:
+            env["AGENT_INSTRUCTIONS"] = payload.instructions
+
+        if payload.cdb_mode:
+            env["AGENT_CDB_MODE"] = "1"
+            if payload.caller_phone:
+                env["AGENT_CALLER_PHONE"] = payload.caller_phone.strip()
+
+        _proc = await asyncio.create_subprocess_exec(
+            str(PYTHON), info["file"], "dev",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            cwd=BASE_DIR,
+            start_new_session=True,
+            env=env,
+        )
+        _current_id = agent_id
+        _tail_task  = asyncio.create_task(_tail_process(_proc))
+        await _broadcast(f"[ui] started {info['label']} (PID {_proc.pid}) — waiting for registration...")
+        await _wait_for_worker()
+        await _setup_room_dispatch(_current_room, previous_room)
+        return {"status": "started", "agent": agent_id, "pid": _proc.pid, "room": _current_room}
 
 
 @app.post("/agent/stop")
-async def stop_agent():
-    await _kill_agent()
+async def stop_agent(_auth=Depends(auth)):
+    async with _lifecycle_lock:
+        await _kill_agent()
     return {"status": "stopped"}
 
 
 @app.get("/agent/status")
-async def agent_status():
+async def agent_status(_auth=Depends(auth)):
     running = bool(_proc and _proc.returncode is None)
     return {"running": running, "agent": _current_id if running else None}
 
 
 @app.get("/bench/{agent_id}")
-async def bench_results(agent_id: str):
+async def bench_results(agent_id: str, _auth=Depends(auth)):
     if agent_id not in AGENTS:
         return JSONResponse({"error": "unknown"}, status_code=400)
     bench = AGENTS[agent_id]["bench_file"]
@@ -192,8 +309,20 @@ async def bench_results(agent_id: str):
     return {"turns": turns}
 
 
+@app.post("/bench/clear/{agent_id}")
+async def bench_clear(agent_id: str, _auth=Depends(auth)):
+    if agent_id not in AGENTS:
+        return JSONResponse({"error": "unknown"}, status_code=400)
+    bench = AGENTS[agent_id]["bench_file"]
+    if bench:
+        path = BASE_DIR / bench
+        if path.exists():
+            await asyncio.to_thread(path.unlink)
+    return {"status": "cleared"}
+
+
 @app.get("/stream")
-async def log_stream():
+async def log_stream(_auth=Depends(auth)):
     queue: asyncio.Queue = asyncio.Queue()
     _log_listeners.add(queue)
 
@@ -212,19 +341,31 @@ async def log_stream():
 
 
 @app.get("/token")
-async def get_token():
+async def get_token(_auth=Depends(auth)):
     token = (
         AccessToken(LK_KEY, LK_SECRET)
-        .with_grants(VideoGrants(room_join=True, room=ROOM, can_publish=True, can_subscribe=True))
+        .with_grants(VideoGrants(room_join=True, room=_current_room, can_publish=True, can_subscribe=True))
         .with_identity("browser-user")
         .to_jwt()
     )
-    return {"token": token, "url": LK_PUBLIC, "room": ROOM}
+    return {"token": token, "url": LK_PUBLIC, "room": _current_room}
 
+
+from fastapi.staticfiles import StaticFiles
+
+# Serve assets
+public_assets = BASE_DIR / "public" / "assets"
+if public_assets.exists():
+    app.mount("/voice/assets", StaticFiles(directory=public_assets), name="assets")
 
 @app.get("/")
-async def index():
-    return FileResponse(BASE_DIR / "frontend" / "index.html")
+@app.get("/voice")
+@app.get("/voice/{path:path}")
+async def index(path: str = ""):
+    html_file = BASE_DIR / "public" / "voice.html"
+    if html_file.exists():
+        return FileResponse(html_file)
+    return JSONResponse({"error": "UI not built yet"}, status_code=404)
 
 
 if __name__ == "__main__":

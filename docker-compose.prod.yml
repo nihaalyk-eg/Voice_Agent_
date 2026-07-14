@@ -1,12 +1,11 @@
 version: '3.9'
 
 services:
+  # ── Infrastructure ───────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: voice_agent_postgres_prod
     restart: unless-stopped
-    ports:
-      - '5432:5432'
     environment:
       POSTGRES_DB: voice_agent
       POSTGRES_USER: voice_agent
@@ -14,17 +13,10 @@ services:
     volumes:
       - pgdata_prod:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U voice_agent -d voice_agent']
-      interval: 5s
+      test: ['CMD-SHELL', 'pg_isready -U voice_agent']
+      interval: 10s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1024M
-        reservations:
-          memory: 256M
 
   valkey:
     image: valkey/valkey:8-alpine
@@ -39,47 +31,66 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          memory: 128M
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: voice_agent_app_prod
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit_server
     restart: unless-stopped
-    ports:
-      - '3000:3000'
+    network_mode: host
+    command: --config /etc/livekit.yaml --node-ip 18.198.144.82
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+
+  # ── Voice agent ──────────────────────────────────────────────────────────────
+  voice-agent:
+    build:
+      context: ./voice_agent
+    container_name: voice_agent_service
+    restart: unless-stopped
+    env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
       valkey:
         condition: service_healthy
+    volumes:
+      - voice_bench:/app/data
+    extra_hosts:
+      - 'livekit:host-gateway'
+
+  # ── Email agent ───────────────────────────────────────────────────────────────
+  email-agent:
+    build:
+      context: ./email_agent_app
+    container_name: email_agent_service
+    restart: unless-stopped
+    env_file: .env
     environment:
-      - PORT=3000
-      - DATABASE_URL=postgresql://voice_agent:voice_agent_pw@postgres:5432/voice_agent
-      - VALKEY_URL=redis://valkey:6379
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
-      - CHAT_DEPLOYMENT_NAME=${CHAT_DEPLOYMENT_NAME}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - KEYCLOAK_URL=${KEYCLOAK_URL}
-      - KEYCLOAK_REALM=${KEYCLOAK_REALM}
-      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1024M
-        reservations:
-          memory: 256M
+      PORT: '3001'
+      DATABASE_URL: 'postgresql://voice_agent:voice_agent_pw@postgres:5432/voice_agent'
+      VALKEY_URL: 'redis://valkey:6379'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  # ── Nginx (entry point) ──────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: voice_nginx
+    restart: unless-stopped
+    ports:
+      - '3000:80'
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - voice-agent
+      - email-agent
+    extra_hosts:
+      - 'livekit:host-gateway'
 
 volumes:
   pgdata_prod:
   valkeydata_prod:
+  voice_bench:

@@ -17,6 +17,8 @@ import websockets
 from livekit import rtc
 from livekit.agents import JobContext, WorkerOptions, cli
 from langfuse_setup import setup_langfuse
+import cdb_tools
+import realtime_tools
 
 # ── Bench file ──────────────────────────────────────────────────────────────
 _DATA = _Path(__file__).parent / "data"
@@ -38,22 +40,53 @@ _INSTRUCTIONS = os.environ.get(
     "AGENT_INSTRUCTIONS",
     "You are a helpful, concise voice assistant. Keep every response to two or three sentences.",
 )
-_VOICE = os.environ.get("AGENT_VOICE", "en-US-AvaNeural")
+_VOICE     = os.environ.get("AGENT_VOICE",     "en-US-AvaNeural")
+_LANGUAGE  = os.environ.get("AGENT_LANGUAGE",  "en-US")
+_PROACTIVE = os.environ.get("AGENT_PROACTIVE", "0") == "1"
+_CDB_MODE     = os.environ.get("AGENT_CDB_MODE", "0") == "1"
+_CALLER_PHONE = os.environ.get("AGENT_CALLER_PHONE", "").strip()
 
-SESSION_CONFIG = {
-    "type": "session.update",
-    "session": {
-        "modalities": ["text", "audio"],
-        "instructions": _INSTRUCTIONS,
-        "input_audio_format":  "pcm16",
-        "output_audio_format": "pcm16",
-        "input_audio_transcription": {"model": "gpt-4o-transcribe", "language": "en"},
-        "turn_detection": {"type": "semantic_vad", "eagerness": "medium"},
-        "input_audio_noise_reduction":   {"type": "azure_deep_noise_suppression"},
-        "input_audio_echo_cancellation": {"type": "server_echo_cancellation"},
-        "voice": {"name": _VOICE, "type": "azure-standard"},
-    },
-}
+# Form mode: same AGENT_CONFIG the Pipeline agent (agent.py) reads.
+_agent_config_raw = os.environ.get("AGENT_CONFIG")
+_agent_config: dict | None = None
+if _agent_config_raw:
+    try:
+        _agent_config = json.loads(_agent_config_raw)
+    except Exception:
+        _agent_config = None
+_FORM_MODE = bool(_agent_config and _agent_config.get("required_fields"))
+
+# Available in every mode, not just CDB — any caller might ask to switch
+# languages regardless of what the call is about.
+_INSTRUCTIONS += (
+    "\n\nIf the caller asks to continue in a different language, call "
+    "switch_language(language) with the language they asked for (a name like "
+    "'Spanish' or a locale code like 'es-ES'). This actually changes what you "
+    "speak and understand next — once it succeeds, continue the rest of the "
+    "call in that language."
+)
+
+
+def _make_session_config(instructions: str, voice: str, language: str, cdb_mode: bool, form_mode: bool) -> dict:
+    config = {
+        "type": "session.update",
+        "session": {
+            "modalities": ["text", "audio"],
+            "instructions": instructions,
+            "input_audio_format":  "pcm16",
+            "output_audio_format": "pcm16",
+            "input_audio_transcription": {"model": "gpt-4o-transcribe", "language": language.split("-")[0]},
+            "turn_detection": {"type": "semantic_vad", "eagerness": "medium"},
+            "input_audio_noise_reduction":   {"type": "azure_deep_noise_suppression"},
+            "input_audio_echo_cancellation": {"type": "server_echo_cancellation"},
+            "voice": {"name": voice, "type": "azure-standard"},
+        },
+    }
+    tools = realtime_tools.build_tools_schema(cdb_mode, form_mode)
+    if tools:
+        config["session"]["tools"] = tools
+        config["session"]["tool_choice"] = "auto"
+    return config
 
 
 # ── Benchmark helpers ────────────────────────────────────────────────────────
@@ -114,6 +147,13 @@ async def _get_audio_stream(room: rtc.Room, identity: str) -> rtc.AudioStream:
     return rtc.AudioStream(await fut, sample_rate=SAMPLE_RATE, num_channels=CHANNELS)
 
 
+def _find_audio_track_sid(participant: rtc.Participant) -> str:
+    for pub in participant.track_publications.values():
+        if pub.kind == rtc.TrackKind.KIND_AUDIO:
+            return pub.sid
+    return ""
+
+
 # ── Entrypoint ───────────────────────────────────────────────────────────────
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
@@ -131,9 +171,31 @@ async def entrypoint(ctx: JobContext) -> None:
 
     out_source = rtc.AudioSource(SAMPLE_RATE, CHANNELS)
     out_track  = rtc.LocalAudioTrack.create_audio_track("realtime-out", out_source)
-    await ctx.room.local_participant.publish_track(
+    out_pub = await ctx.room.local_participant.publish_track(
         out_track, rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE),
     )
+
+    # ── CDB / Form mode: resolve caller identity + language before opening the session ──
+    cdb_state = realtime_tools.CdbState()
+    instructions, voice, language = _INSTRUCTIONS, _VOICE, _LANGUAGE
+
+    if _CDB_MODE:
+        matched_customer = None
+        if _CALLER_PHONE:
+            try:
+                matched_customer = await cdb_tools.lookup_by_phone(_CALLER_PHONE)
+            except Exception as e:
+                print(f"[ui] caller-ID lookup failed: {e}")
+        cdb_state.matched_customer = matched_customer
+        if matched_customer:
+            print(f"[customer] {json.dumps({'status': 'match', 'customer': matched_customer, 'via': 'caller_id'})}")
+        instructions, resolved_locale, resolved_voice = realtime_tools.build_cdb_instructions(
+            _INSTRUCTIONS, matched_customer,
+        )
+        if resolved_locale:
+            language, voice = resolved_locale, resolved_voice
+    elif _FORM_MODE:
+        instructions = realtime_tools.build_form_instructions(_INSTRUCTIONS, _agent_config)
 
     done = asyncio.Event()
     ctx.room.on("disconnected", lambda *_: done.set())
@@ -142,10 +204,26 @@ async def entrypoint(ctx: JobContext) -> None:
     print(f"[realtime] connecting ({_MODEL})...")
 
     async with websockets.connect(VOICE_LIVE_URL, additional_headers=headers) as ws:
-        await ws.send(json.dumps(SESSION_CONFIG))
+        await ws.send(json.dumps(_make_session_config(instructions, voice, language, _CDB_MODE, _FORM_MODE)))
 
         turn_n   = 0
         current: Turn | None = None
+        pending_calls: dict[str, str] = {}  # call_id -> function name
+
+        async def _switch_language_cb(new_locale: str, new_voice: str) -> None:
+            nonlocal language
+            await ws.send(json.dumps({
+                "type": "session.update",
+                "session": {
+                    "input_audio_transcription": {"model": "gpt-4o-transcribe", "language": new_locale.split("-")[0]},
+                    "voice": {"name": new_voice, "type": "azure-standard"},
+                },
+            }))
+            # Keep the local variable in sync so subsequently published
+            # transcript segments are tagged with the new language instead
+            # of the stale one — the STT/TTS reconfiguration above already
+            # takes effect regardless, this is just the metadata tag.
+            language = new_locale
 
         async def send_audio() -> None:
             audio_stream = await _get_audio_stream(ctx.room, participant.identity)
@@ -174,6 +252,8 @@ async def entrypoint(ctx: JobContext) -> None:
                         print(f"[realtime] ERROR: {msg.get('error', msg)}")
                     elif t == "session.created":
                         print("[realtime] session ready")
+                        if _PROACTIVE:
+                            await ws.send(json.dumps({"type": "response.create"}))
                     elif t == "input_audio_buffer.speech_started":
                         print("[realtime] ↑ user speaking")
                     elif t == "input_audio_buffer.speech_stopped":
@@ -182,16 +262,59 @@ async def entrypoint(ctx: JobContext) -> None:
                     elif t == "conversation.item.input_audio_transcription.completed":
                         text = msg.get("transcript", "").strip()
                         print(f"[realtime] user: {text}")
+                        if text:
+                            try:
+                                await ctx.room.local_participant.publish_transcription(rtc.Transcription(
+                                    participant_identity=participant.identity,
+                                    track_sid=_find_audio_track_sid(participant),
+                                    segments=[rtc.TranscriptionSegment(
+                                        id=msg.get("item_id", "") or f"user-{turn_n}",
+                                        text=text, start_time=0, end_time=0,
+                                        language=language, final=True,
+                                    )],
+                                ))
+                            except Exception as e:
+                                print(f"[realtime] transcript publish error: {e}")
                         if current and current.transcript_ms is None:
                             current.transcript_ms = _ms()
                             current.user_text = text
                             if current.speech_stopped_ms:
                                 current.stt_ms = current.transcript_ms - current.speech_stopped_ms
+                    elif t == "response.output_item.added":
+                        item = msg.get("item", {})
+                        if item.get("type") == "function_call":
+                            pending_calls[item.get("call_id", "")] = item.get("name", "")
+                    elif t == "response.function_call_arguments.done":
+                        call_id = msg.get("call_id", "")
+                        name = pending_calls.pop(call_id, "")
+                        if name:
+                            result = await realtime_tools.execute_tool(
+                                name, msg.get("arguments", ""), cdb_state,
+                                switch_language_cb=_switch_language_cb,
+                            )
+                            await ws.send(json.dumps({
+                                "type": "conversation.item.create",
+                                "item": {"type": "function_call_output", "call_id": call_id, "output": result},
+                            }))
+                            await ws.send(json.dumps({"type": "response.create"}))
                     elif t == "response.audio_transcript.done":
                         text = msg.get("transcript", "").strip()
                         print(f"[realtime] agent: {text}")
                         if current:
                             current.agent_text = text
+                        if text:
+                            try:
+                                await ctx.room.local_participant.publish_transcription(rtc.Transcription(
+                                    participant_identity=ctx.room.local_participant.identity,
+                                    track_sid=out_pub.sid,
+                                    segments=[rtc.TranscriptionSegment(
+                                        id=msg.get("item_id", "") or f"agent-{turn_n}",
+                                        text=text, start_time=0, end_time=0,
+                                        language=language, final=True,
+                                    )],
+                                ))
+                            except Exception as e:
+                                print(f"[realtime] transcript publish error: {e}")
                     elif t == "response.audio.delta":
                         delta = msg.get("delta", "")
                         if not delta:

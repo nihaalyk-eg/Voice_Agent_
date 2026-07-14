@@ -4,7 +4,7 @@ services:
     container_name: voice_agent_postgres
     restart: unless-stopped
     ports:
-      - '5432:5432'
+      - '55432:5432'
     environment:
       POSTGRES_DB: voice_agent
       POSTGRES_USER: voice_agent
@@ -38,17 +38,20 @@ services:
     ports:
       - '7880:7880'
       - '7881:7881'
+      - '3478:3478/udp'
+      - '3478:3478/tcp'
+      - '5349:5349/tcp'
       - '45000-45100:45000-45100/udp'
     depends_on:
       valkey:
         condition: service_healthy
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
     command:
-      - --dev
+      - --config=/etc/livekit.yaml
       - --redis-host=valkey:6379
-      - --udp-port=45000-45100
-      - --node-ip=127.0.0.1
 
   voice-ui:
     build:

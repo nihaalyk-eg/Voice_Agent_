@@ -1,3 +1,11 @@
+# ── Build stage for frontend ──────────────────────────────────────────────
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 # ── Build stage: install deps with uv ─────────────────────────────────────
 FROM python:3.13-slim AS builder
 
@@ -20,9 +28,11 @@ WORKDIR /app
 # Bring in the pre-built venv from builder
 COPY --from=builder /app/.venv ./.venv
 
-# Copy backend source and frontend
+# Copy backend source
 COPY *.py ./
-COPY frontend/ ./frontend/
+
+# Copy built frontend assets
+COPY --from=frontend-builder /app/public ./public
 
 # Benchmark data goes here — mount a volume at /app/data for persistence
 RUN mkdir -p /app/data

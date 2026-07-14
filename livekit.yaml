@@ -1,0 +1,30 @@
+port: 7880
+bind_addresses:
+  - ""
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  use_external_ip: false
+  node_ip: 127.0.0.1
+  skip_external_ip_validation: true
+  stun_servers: []
+  turn_servers:
+    - host: openrelay.metered.ca
+      port: 80
+      protocol: udp
+      username: openrelayproject
+      credential: openrelayproject
+    - host: openrelay.metered.ca
+      port: 443
+      protocol: tcp
+      username: openrelayproject
+      credential: openrelayproject
+turn:
+  enabled: true
+  domain: 10.31.72.253
+  udp_port: 3478
+redis:
+  address: localhost:6379
+logging:
+  level: info
