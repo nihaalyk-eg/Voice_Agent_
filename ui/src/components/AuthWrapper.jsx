@@ -26,9 +26,9 @@ export const AuthWrapper = ({ children }) => {
 
   useEffect(() => {
     const keycloak = new Keycloak({
-      url: 'https://egauth.cto.aks.egdev.eu',
-      realm: 'EGAuthentication',
-      clientId: 'pitchsync'
+      url: import.meta.env.VITE_KEYCLOAK_URL,
+      realm: import.meta.env.VITE_KEYCLOAK_REALM,
+      clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID
     });
 
     keycloak.onAuthSuccess = () => {

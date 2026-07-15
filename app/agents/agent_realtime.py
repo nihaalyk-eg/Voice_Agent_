@@ -27,7 +27,7 @@ BENCH_FILE = str(_DATA / "bench_realtime.jsonl")
 
 # ── Endpoint ─────────────────────────────────────────────────────────────────
 _BASE  = os.environ["AZURE_OPENAI_ENDPOINT"].rstrip("/").removeprefix("https://")
-_MODEL = "gpt-realtime-1.5"
+_MODEL = os.environ.get("REALTIME_DEPLOYMENT_NAME", "gpt-realtime-1.5")
 VOICE_LIVE_URL = (
     f"wss://{_BASE}/voice-live/realtime"
     f"?api-version=2026-04-10&model={_MODEL}"
@@ -369,4 +369,4 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, agent_name=os.environ.get("LIVEKIT_AGENT_NAME", "")))

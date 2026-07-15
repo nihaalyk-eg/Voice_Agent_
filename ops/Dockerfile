@@ -4,6 +4,7 @@ WORKDIR /build/ui
 COPY ui/package*.json ./
 RUN npm ci
 COPY ui/ ./
+COPY .env ../.env
 RUN npm run build
 # Because outDir is ../public, it builds to /build/public
 

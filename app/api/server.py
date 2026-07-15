@@ -40,14 +40,14 @@ LK_PUBLIC = os.environ.get("LIVEKIT_PUBLIC_URL", "ws://localhost:7880")
 LK_KEY    = os.environ["LIVEKIT_API_KEY"]
 LK_SECRET = os.environ["LIVEKIT_API_SECRET"]
 
-KEYCLOAK_URL   = os.environ.get("KEYCLOAK_URL",   "https://egauth.cto.aks.egdev.eu")
-KEYCLOAK_REALM = os.environ.get("KEYCLOAK_REALM", "EGAuthentication")
+KEYCLOAK_URL   = os.environ.get("KEYCLOAK_URL")
+KEYCLOAK_REALM = os.environ.get("KEYCLOAK_REALM")
 
 AGENTS = {
     "pipeline": {
         "label":      "Pipeline",
         "subtitle":   "Azure STT → LLM → Azure TTS",
-        "model":      "gpt-4.1-mini",
+        "model":      os.environ.get("CHAT_DEPLOYMENT_NAME", "gpt-4.1-mini"),
         "module":     "app.agents.agent",
         "bench_file": "data/bench_pipeline.jsonl",
         "e2e_target": 5083,
@@ -56,7 +56,7 @@ AGENTS = {
     "voice-live": {
         "label":      "Voice Live",
         "subtitle":   "Azure Voice Live API",
-        "model":      "gpt-4.1-mini",
+        "model":      os.environ.get("CHAT_DEPLOYMENT_NAME", "gpt-4.1-mini"),
         "module":     "app.agents.agent_voice_live",
         "bench_file": "data/bench_voice_live.jsonl",
         "e2e_target": 470,
@@ -65,7 +65,7 @@ AGENTS = {
     "realtime": {
         "label":      "Realtime API",
         "subtitle":   "GPT-4o Realtime API",
-        "model":      "gpt-4o-realtime-preview",
+        "model":      os.environ.get("REALTIME_DEPLOYMENT_NAME", "gpt-realtime-1.5"),
         "module":     "app.agents.agent_realtime",
         "bench_file": "data/bench_realtime.jsonl",
         "e2e_target": 1212,
@@ -204,7 +204,7 @@ async def _wait_for_worker(delay: float = 3.0) -> None:
     await asyncio.sleep(delay)
 
 
-async def _setup_room_dispatch(room_name: str, previous_room: str | None) -> None:
+async def _setup_room_dispatch(room_name: str, previous_room: str | None, agent_name: str) -> None:
     # Each session gets a brand-new room name. Reusing one static room name across
     # sessions raced with LiveKit's worker-deregistration on hangup: a stale
     # (just-killed) worker could still look "available" to the server for a moment,
@@ -218,7 +218,7 @@ async def _setup_room_dispatch(room_name: str, previous_room: str | None) -> Non
         await api.room.create_room(CreateRoomRequest(
             name=room_name,
             empty_timeout=300,
-            agents=[RoomAgentDispatch(agent_name="")],
+            agents=[RoomAgentDispatch(agent_name=agent_name)],
         ))
     await _broadcast(f"[ui] room '{room_name}' ready — waiting for client to connect...")
 
@@ -247,8 +247,10 @@ async def start_agent(
 
         previous_room = _current_room
         _current_room = f"{ROOM_PREFIX}-{uuid.uuid4().hex[:8]}"
+        worker_name = f"{agent_id}-{uuid.uuid4().hex[:8]}"
 
         env = {**os.environ}
+        env["LIVEKIT_AGENT_NAME"] = worker_name
         env["AGENT_VOICE"]     = payload.voice
         env["AGENT_LANGUAGE"]  = payload.language
         env["AGENT_PROACTIVE"] = "1" if payload.proactive else "0"
@@ -278,7 +280,7 @@ async def start_agent(
         _tail_task  = asyncio.create_task(_tail_process(_proc))
         await _broadcast(f"[ui] started {info['label']} (PID {_proc.pid}) — waiting for registration...")
         await _wait_for_worker()
-        await _setup_room_dispatch(_current_room, previous_room)
+        await _setup_room_dispatch(_current_room, previous_room, worker_name)
         return {"status": "started", "agent": agent_id, "pid": _proc.pid, "room": _current_room}
 
 

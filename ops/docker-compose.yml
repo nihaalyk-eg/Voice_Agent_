@@ -48,7 +48,7 @@ services:
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml
+      - ../livekit.yaml:/etc/livekit.yaml
     command:
       - --config=/etc/livekit.yaml
       - --redis-host=valkey:6379
@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
     ports:
       - '3000:8080'
-    env_file: .env
+    env_file: ../.env
     environment:
       LIVEKIT_URL: ws://livekit:7880
     volumes:

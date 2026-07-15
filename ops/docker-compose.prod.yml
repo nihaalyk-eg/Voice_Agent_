@@ -39,17 +39,18 @@ services:
     network_mode: host
     command: --config /etc/livekit.yaml --node-ip 18.198.144.82
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml
+      - ../livekit.yaml:/etc/livekit.yaml
 
   # ── Voice agent ──────────────────────────────────────────────────────────────
   voice-agent:
     build:
-      context: ./voice_agent
+      context: ..
+      dockerfile: ops/Dockerfile
     container_name: voice_agent_service
     restart: unless-stopped
     ports:
       - '80:8080'
-    env_file: .env
+    env_file: ../.env.prod
     depends_on:
       postgres:
         condition: service_healthy
