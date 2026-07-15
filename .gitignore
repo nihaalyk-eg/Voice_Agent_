@@ -35,4 +35,12 @@ __pycache__/
 .venv/
 
 # Build output
-voice_agent/public/
+public/
+ui/dist/
+ui/public/assets/
+
+# Temporary / Tooling
+.playwright-mcp/
+.claude/
+.serena/
+skills-lock.json

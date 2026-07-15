@@ -1,4 +1,0 @@
-- generic [ref=e2]:
-  - progressbar [ref=e3]:
-    - img [ref=e4]
-  - heading "Loading, please wait..." [level=6] [ref=e6]
