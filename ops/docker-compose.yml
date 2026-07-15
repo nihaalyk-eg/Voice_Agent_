@@ -6,9 +6,9 @@ services:
     ports:
       - '55432:5432'
     environment:
-      POSTGRES_DB: voice_agent
       POSTGRES_USER: voice_agent
-      POSTGRES_PASSWORD: voice_agent_pw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: voice_agent
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
