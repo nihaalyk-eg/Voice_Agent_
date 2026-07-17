@@ -13,6 +13,10 @@ This repository strictly adheres to an "Agentic OS" folder structure. This means
 - **`prompts/`**: Stores LLM system prompts as text files (Prompts MUST NEVER be hardcoded in Python).
 - **`docs/`**: Long-term memory for architectural specs (`project/`) and decision logs (`process/`).
 
+## How It Works
+
+For a deep dive into the system architecture, the call lifecycle, the three interchangeable agent backends, and how LiveKit is wired up, see **[docs/architecture/](docs/architecture/)**.
+
 ## Local Development
 
 Works the same on macOS, Linux, and Windows — the only requirements are [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + the Compose plugin on Linux) and Python 3.11+ (only needed for the optional re-seed script in step 3).
