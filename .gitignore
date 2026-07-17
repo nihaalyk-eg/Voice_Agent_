@@ -44,4 +44,6 @@ ui/public/assets/
 .playwright-mcp/
 .claude/
 .serena/
+.gemini/
 skills-lock.json
+*.skill
