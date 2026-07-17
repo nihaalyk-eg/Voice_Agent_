@@ -16,6 +16,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+import psycopg
 import uvicorn
 from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, HTTPException, Query
@@ -297,6 +298,36 @@ async def agent_status(_auth=Depends(auth)):
     return {"running": running, "agent": _current_id if running else None}
 
 
+@app.get("/customers")
+async def list_customers(search: str = Query(default=""), _auth=Depends(auth)):
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        return JSONResponse({"error": "DATABASE_URL not configured"}, status_code=503)
+
+    def _query():
+        with psycopg.connect(database_url, connect_timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, full_name, phone_number, email, property_address,
+                           apartment_number, language_preference, notes
+                    FROM customers
+                    WHERE %(q)s = '' OR full_name ILIKE %(pattern)s OR phone_number ILIKE %(pattern)s
+                       OR property_address ILIKE %(pattern)s
+                    ORDER BY full_name
+                    """,
+                    {"q": search, "pattern": f"%{search}%"},
+                )
+                cols = [d.name for d in cur.description]
+                return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    try:
+        rows = await asyncio.to_thread(_query)
+    except psycopg.OperationalError as e:
+        return JSONResponse({"error": f"database unavailable: {e}"}, status_code=503)
+    return {"customers": rows}
+
+
 @app.get("/bench/{agent_id}")
 async def bench_results(agent_id: str, _auth=Depends(auth)):
     if agent_id not in AGENTS:
@@ -355,10 +386,15 @@ async def get_token(_auth=Depends(auth)):
 
 
 # ── Static UI serving ────────────────────────────────────────────────────
-# Mount the built frontend. The SPA fallback (html=True) serves voice.html
-# for any path that doesn't match a real file, so client-side routing works.
 public_dir = BASE_DIR / "public"
+
+# Client-side routes handled by the SPA's hand-rolled router (NavContext) —
+# served explicitly so a direct navigation/refresh on these paths doesn't 404.
 if public_dir.exists():
+    @app.get("/customer-db")
+    async def customer_db_page():
+        return FileResponse(public_dir / "index.html")
+
     app.mount("/", StaticFiles(directory=public_dir, html=True), name="ui")
 
 

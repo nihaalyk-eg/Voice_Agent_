@@ -5,7 +5,7 @@ const NavContext = createContext(null);
 export const useNav = () => useContext(NavContext);
 
 const getPage = () => {
-  return 'voice';
+  return window.location.pathname.startsWith('/customer-db') ? 'customer-db' : 'voice';
 };
 
 export const NavProvider = ({ children }) => {

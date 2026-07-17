@@ -123,6 +123,6 @@ export function useAgentConfig() {
     instructions, setInstructions,
     formJson, setFormJson,
     formJsonError,
-    parsedFormConfig
+    parsedFormConfig,
   };
 }

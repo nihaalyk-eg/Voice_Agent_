@@ -1,0 +1,38 @@
+[
+  {
+    "id": "prop1",
+    "address": "Mannerheimintie 10, Helsinki",
+    "technician": "Matti Meikäläinen",
+    "technician_phone": "+358 50 111 2222",
+    "company": "Keskustan Kiinteistöhuolto Oy"
+  },
+  {
+    "id": "prop2",
+    "address": "Hämeentie 23, Helsinki",
+    "technician": "Sanna Sillanpää",
+    "technician_phone": "+358 50 333 4444",
+    "company": "Kallion Huoltopalvelut"
+  },
+  {
+    "id": "prop3",
+    "address": "Runeberginkatu 5, Helsinki",
+    "technician": "Pekka Puupää",
+    "technician_phone": "+358 50 555 6666",
+    "company": "Töölön Kiinteistöhuolto"
+  },
+  {
+    "id": "prop4",
+    "address": "Fredrikinkatu 15, Helsinki",
+    "technician": "Matti Meikäläinen",
+    "technician_phone": "+358 50 111 2222",
+    "company": "Keskustan Kiinteistöhuolto Oy"
+  },
+  {
+    "id": "prop5",
+    "address": "Aleksanterinkatu 30, Helsinki",
+    "technician": "Juha Koivisto",
+    "technician_phone": "+358 50 999 8888",
+    "company": "Eteläisen Alueen Huolto Oy"
+  }
+]
+

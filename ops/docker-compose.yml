@@ -11,6 +11,7 @@ services:
       POSTGRES_DB: voice_agent
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./seed/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U voice_agent -d voice_agent']
       interval: 5s
@@ -31,27 +32,6 @@ services:
       timeout: 5s
       retries: 5
 
-  livekit:
-    image: livekit/livekit-server:latest
-    container_name: voice_agent_livekit
-    restart: unless-stopped
-    ports:
-      - '7880:7880'
-      - '7881:7881'
-      - '3478:3478/udp'
-      - '3478:3478/tcp'
-      - '5349:5349/tcp'
-      - '45000-45100:45000-45100/udp'
-    depends_on:
-      valkey:
-        condition: service_healthy
-    environment:
-      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
-    volumes:
-      - ../livekit.yaml:/etc/livekit.yaml
-    command:
-      - --config=/etc/livekit.yaml
-      - --redis-host=valkey:6379
 
   voice-ui:
     build:
@@ -63,13 +43,13 @@ services:
       - '3000:8080'
     env_file: ../.env
     environment:
-      LIVEKIT_URL: ws://livekit:7880
+      DATABASE_URL: 'postgresql://voice_agent:${POSTGRES_PASSWORD:-postgres}@postgres:5432/voice_agent'
     volumes:
       - voice_bench:/app/data
     depends_on:
-      livekit:
-        condition: service_started
       valkey:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
 volumes:

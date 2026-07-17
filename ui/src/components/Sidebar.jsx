@@ -27,6 +27,10 @@ export const Sidebar = () => {
           <i className="fa-solid fa-microphone-lines"></i>
           <span>Voice Agent</span>
         </a>
+        <a href="/customer-db" onClick={go('/customer-db')} className={`sidebar-link ${isActive('customer-db') ? 'active' : ''}`}>
+          <i className="fa-solid fa-database"></i>
+          <span>Customer DB</span>
+        </a>
       </nav>
 
       <div className="sidebar-footer">
