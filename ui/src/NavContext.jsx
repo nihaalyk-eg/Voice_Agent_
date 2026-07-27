@@ -6,10 +6,9 @@ export const useNav = () => useContext(NavContext);
 
 const getPage = () => {
   const path = window.location.pathname;
-  if (path.startsWith('/admin') || path.startsWith('/customer-db') || path.startsWith('/customers') || path.startsWith('/work-orders') || path.startsWith('/transcripts') || path.startsWith('/logs')) {
+  if (path.startsWith('/admin') || path.startsWith('/customer-db') || path.startsWith('/customers') || path.startsWith('/work-orders') || path.startsWith('/transcripts')) {
     if (path.startsWith('/work-orders')) return 'work-orders';
     if (path.startsWith('/transcripts')) return 'transcripts';
-    if (path.startsWith('/logs')) return 'logs';
     return 'customers';
   }
   return 'voice';

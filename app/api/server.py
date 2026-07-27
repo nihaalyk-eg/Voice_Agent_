@@ -475,7 +475,7 @@ async def update_work_order_status(wo_id: str, data: dict = Body(...), _auth=Dep
 
 @app.get("/transcripts")
 async def list_transcripts(_auth=Depends(auth)):
-    all_turns = []
+    all_sessions = []
     for agent_id, agent in AGENTS.items():
         bench = agent.get("bench_file")
         if not bench:
@@ -486,13 +486,51 @@ async def list_transcripts(_auth=Depends(auth)):
         try:
             text = await asyncio.to_thread(path.read_text)
             turns = [json.loads(l) for l in text.splitlines() if l.strip()]
+            
+            call_turns = []
+            call_count = 1
+            
             for t in turns:
                 t["agent_id"] = agent_id
                 t["agent_label"] = agent["label"]
-                all_turns.append(t)
+                
+                # Check if new call session starts
+                if t.get("turn") == 1 and call_turns:
+                    lats = [tr["e2e_ms"] for tr in call_turns if tr.get("e2e_ms")]
+                    avg_lat = round(sum(lats) / len(lats)) if lats else 0
+                    first_turn = call_turns[0]
+                    all_sessions.append({
+                        "id": f"{agent_id}-call-{call_count}",
+                        "agent_id": agent_id,
+                        "agent_label": agent["label"],
+                        "total_turns": len(call_turns),
+                        "avg_e2e_ms": avg_lat,
+                        "preview": first_turn.get("user_text") or first_turn.get("agent_text") or "No preview",
+                        "turns": call_turns,
+                    })
+                    call_count += 1
+                    call_turns = []
+                
+                call_turns.append(t)
+                
+            if call_turns:
+                lats = [tr["e2e_ms"] for tr in call_turns if tr.get("e2e_ms")]
+                avg_lat = round(sum(lats) / len(lats)) if lats else 0
+                first_turn = call_turns[0]
+                all_sessions.append({
+                    "id": f"{agent_id}-call-{call_count}",
+                    "agent_id": agent_id,
+                    "agent_label": agent["label"],
+                    "total_turns": len(call_turns),
+                    "avg_e2e_ms": avg_lat,
+                    "preview": first_turn.get("user_text") or first_turn.get("agent_text") or "No preview",
+                    "turns": call_turns,
+                })
         except Exception:
             pass
-    return {"transcripts": all_turns}
+            
+    all_sessions.reverse()
+    return {"sessions": all_sessions}
 
 
 @app.get("/bench/{agent_id}")

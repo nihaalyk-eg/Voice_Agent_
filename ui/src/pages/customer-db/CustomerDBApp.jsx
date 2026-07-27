@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../components/AuthWrapper';
 import { Sidebar } from '../../components/Sidebar';
 import { useNav } from '../../NavContext';
@@ -21,25 +21,19 @@ const S = {
   },
   modalOverlay: {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-    background: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(4px)',
+    background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(5px)',
     display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px',
   },
   modalCard: {
-    background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: '12px',
-    width: '100%', maxWidth: '540px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+    background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: '14px',
+    width: '100%', maxWidth: '640px', maxHeight: '85vh', padding: '24px', boxShadow: '0 25px 30px -5px rgba(0, 0, 0, 0.6)',
     display: 'flex', flexDirection: 'column', gap: '16px', color: 'var(--text-primary)',
   },
 };
 
-const MAX_LOG_LINES = 1000;
-
 export const CustomerDBApp = ({ activeTab = 'customers' }) => {
-  const { token, authFetch } = useAuth();
+  const { authFetch } = useAuth();
   const { navigate } = useNav();
-
-  const [logs, setLogs] = useState([]);
-  const [logFilter, setLogFilter] = useState('');
-  const [autoScrollLogs, setAutoScrollLogs] = useState(true);
 
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(true);
@@ -56,16 +50,12 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
   const [showCreateWOModal, setShowCreateWOModal] = useState(false);
   const [selectedWO, setSelectedWO] = useState(null);
 
-  const [transcripts, setTranscripts] = useState([]);
+  const [sessions, setSessions] = useState([]);
   const [transcriptsLoading, setTranscriptsLoading] = useState(true);
   const [transcriptSearch, setTranscriptSearch] = useState('');
-  const [selectedTranscript, setSelectedTranscript] = useState(null);
+  const [selectedSession, setSelectedSession] = useState(null);
 
-  const sseRef = useRef(null);
-  const sseTimerRef = useRef(null);
-  const logsEndRef = useRef(null);
-
-  const currentTab = ['customers', 'customer-db', 'work-orders', 'transcripts', 'logs'].includes(activeTab)
+  const currentTab = ['customers', 'customer-db', 'work-orders', 'transcripts'].includes(activeTab)
     ? (activeTab === 'customer-db' ? 'customers' : activeTab)
     : 'customers';
 
@@ -111,15 +101,15 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
     }
   }, [authFetch]);
 
-  // ── FETCH TRANSCRIPTS ────────────────────────────────────────────────────────
+  // ── FETCH CALL SESSIONS TRANSCRIPTS ──────────────────────────────────────────
   const loadTranscripts = useCallback(async () => {
     setTranscriptsLoading(true);
     try {
       const res = await authFetch('/transcripts');
       const data = await res.json();
-      setTranscripts(data.transcripts || []);
+      setSessions(data.sessions || []);
     } catch (e) {
-      setTranscripts([]);
+      setSessions([]);
     } finally {
       setTranscriptsLoading(false);
     }
@@ -135,45 +125,7 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
     loadTranscripts();
   }, [loadWorkOrders, loadTranscripts]);
 
-  // ── STREAM LIVE LOGS ─────────────────────────────────────────────────────────
-  const initStream = useCallback((tok) => {
-    if (sseRef.current) sseRef.current.close();
-    if (sseTimerRef.current) { clearTimeout(sseTimerRef.current); sseTimerRef.current = null; }
-
-    const es = new EventSource(`/stream?token=${encodeURIComponent(tok)}`);
-    sseRef.current = es;
-
-    es.onmessage = (e) => {
-      let line;
-      try { line = JSON.parse(e.data); } catch { return; }
-      if (line === '__STOPPED__') return;
-      setLogs(prev => [...prev.slice(-(MAX_LOG_LINES - 1)), String(line)]);
-      if (typeof line === 'string' && (line.includes('create_work_order') || line.includes('Work Order'))) {
-        loadWorkOrders();
-      }
-    };
-
-    es.onerror = () => {
-      sseTimerRef.current = setTimeout(() => initStream(tok), 5000);
-    };
-  }, [loadWorkOrders]);
-
-  useEffect(() => {
-    if (!token) return;
-    initStream(token);
-    return () => {
-      if (sseRef.current) sseRef.current.close();
-      if (sseTimerRef.current) clearTimeout(sseTimerRef.current);
-    };
-  }, [token, initStream]);
-
-  useEffect(() => {
-    if (autoScrollLogs) {
-      logsEndRef.current?.scrollIntoView({ block: 'nearest' });
-    }
-  }, [logs, autoScrollLogs]);
-
-  // ── HANDLERS: UPDATE STATUS ──────────────────────────────────────────────────
+  // ── UPDATE WORK ORDER STATUS ────────────────────────────────────────────────
   const handleUpdateStatus = async (woId, newStatus) => {
     try {
       const res = await authFetch(`/work-orders/${woId}/status`, {
@@ -191,7 +143,6 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
     }
   };
 
-  // ── FILTER WORK ORDERS ───────────────────────────────────────────────────────
   const filteredWorkOrders = workOrders.filter(w => {
     const matchesStatus = statusFilter === 'All'
       ? true
@@ -208,20 +159,20 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
     return matchesStatus && matchesSearch;
   });
 
-  // ── FILTER TRANSCRIPTS ───────────────────────────────────────────────────────
-  const filteredTranscripts = transcripts.filter(t => {
+  const filteredSessions = sessions.filter(s => {
     const q = transcriptSearch.toLowerCase();
-    return !q || (
-      t.agent_label?.toLowerCase().includes(q) ||
-      t.user_text?.toLowerCase().includes(q) ||
-      t.agent_text?.toLowerCase().includes(q)
+    if (!q) return true;
+    return (
+      s.agent_label?.toLowerCase().includes(q) ||
+      s.preview?.toLowerCase().includes(q) ||
+      s.turns?.some(t => t.user_text?.toLowerCase().includes(q) || t.agent_text?.toLowerCase().includes(q))
     );
   });
 
-  // Calculate Average E2E Latency
-  const latencies = transcripts.filter(t => t.e2e_ms).map(t => t.e2e_ms);
-  const avgLatency = latencies.length > 0 ? Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length) : 0;
-  const minLatency = latencies.length > 0 ? Math.round(Math.min(...latencies)) : 0;
+  // Calculate Overall Metrics
+  const totalCalls = sessions.length;
+  const allLatencies = sessions.map(s => s.avg_e2e_ms).filter(Boolean);
+  const overallAvgLat = allLatencies.length ? Math.round(allLatencies.reduce((a, b) => a + b, 0) / allLatencies.length) : 0;
 
   return (
     <div className="app-layout">
@@ -234,7 +185,7 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
             <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--violet-glow)', flexShrink: 0, boxShadow: '0 0 10px var(--violet-glow)' }} />
             <div>
               <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Admin Management Center</h2>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>PostgreSQL & Voice AI Realtime Control</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Customer Database & Voice Call Transcripts Control</span>
             </div>
           </div>
 
@@ -243,8 +194,7 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
             {[
               { id: 'customers', label: 'Customers', icon: 'fa-address-book', path: '/customers', count: customers.length },
               { id: 'work-orders', label: 'Work Orders', icon: 'fa-clipboard-list', path: '/work-orders', count: workOrders.length },
-              { id: 'transcripts', label: 'Call Transcripts', icon: 'fa-comments', path: '/transcripts', count: transcripts.length },
-              { id: 'logs', label: 'Live Logs', icon: 'fa-terminal', path: '/logs', count: logs.length },
+              { id: 'transcripts', label: 'Call Transcripts', icon: 'fa-comments', path: '/transcripts', count: sessions.length },
             ].map(tab => {
               const isSelected = currentTab === tab.id;
               return (
@@ -277,12 +227,10 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
         {currentTab === 'customers' && (
           <div className="erp-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <h3 className="erp-card-title" style={{ marginBottom: 0 }}>
-                  <i className="fa-solid fa-address-book" style={{ color: 'var(--violet-glow)', marginRight: '6px' }}></i>
-                  Registered Customers {!customersLoading && `(${customers.length})`}
-                </h3>
-              </div>
+              <h3 className="erp-card-title" style={{ marginBottom: 0 }}>
+                <i className="fa-solid fa-address-book" style={{ color: 'var(--violet-glow)', marginRight: '6px' }}></i>
+                Registered Customers {!customersLoading && `(${customers.length})`}
+              </h3>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   type="text"
@@ -320,7 +268,7 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
                     <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}>No matching customers found.</td></tr>
                   )}
                   {customers.map(c => (
-                    <tr key={c.id} style={{ transition: 'background 0.15s' }}>
+                    <tr key={c.id}>
                       <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', color: 'var(--text-primary)', fontWeight: 600 }}>{c.full_name}</td>
                       <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', fontFamily: 'JetBrains Mono, monospace', color: 'var(--violet-glow)' }}>{c.phone_number}</td>
                       <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', color: 'var(--text-secondary)' }}>{c.property_address}{c.apartment_number ? `, Apt ${c.apartment_number}` : ''}</td>
@@ -353,7 +301,6 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
                   Work Orders {!workOrdersLoading && `(${filteredWorkOrders.length})`}
                 </h3>
 
-                {/* STATUS FILTER PILLS */}
                 <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '6px', padding: '2px', border: '1px solid var(--border-light)' }}>
                   {['All', 'Assigned', 'In Progress', 'Completed', 'Urgent'].map(status => (
                     <button
@@ -452,36 +399,32 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
           </div>
         )}
 
-        {/* ── 3. CALL TRANSCRIPTS SUB-TAB ───────────────────────────────────────── */}
+        {/* ── 3. CALL TRANSCRIPTS PER CALL SUB-TAB ───────────────────────────────── */}
         {currentTab === 'transcripts' && (
           <div className="erp-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* METRICS HEADER */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+            {/* OVERALL CALL METRICS BAR */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
               <div style={{ background: 'var(--bg-muted)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
-                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL TURNS LOGGED</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>{transcripts.length}</div>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL CALL SESSIONS</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>{totalCalls}</div>
               </div>
               <div style={{ background: 'var(--bg-muted)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
-                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 600 }}>AVG E2E LATENCY</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--violet-glow)', marginTop: '2px' }}>{avgLatency} ms</div>
-              </div>
-              <div style={{ background: 'var(--bg-muted)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
-                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 600 }}>FASTEST RESPONSE</div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#22c55e', marginTop: '2px' }}>{minLatency} ms</div>
+                <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 600 }}>AVG CALL E2E LATENCY</div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--violet-glow)', marginTop: '2px' }}>{overallAvgLat} ms</div>
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <h3 className="erp-card-title" style={{ marginBottom: 0 }}>
-                <i className="fa-solid fa-comments" style={{ color: 'var(--violet-glow)', marginRight: '6px' }}></i>
-                Call Transcripts History {!transcriptsLoading && `(${filteredTranscripts.length})`}
+                <i className="fa-solid fa-phone-volume" style={{ color: 'var(--violet-glow)', marginRight: '6px' }}></i>
+                Call Sessions History {!transcriptsLoading && `(${filteredSessions.length} Calls)`}
               </h3>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <input
                   type="text"
                   value={transcriptSearch}
                   onChange={e => setTranscriptSearch(e.target.value)}
-                  placeholder="Search user speech or agent text…"
+                  placeholder="Filter call agent mode, speech preview…"
                   style={{ ...S.input, width: '260px' }}
                 />
                 <button type="button" onClick={loadTranscripts} style={S.btnSecondary}>
@@ -494,89 +437,47 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-muted)' }}>
-                    {['Agent Mode', 'Turn', 'User Spoke', 'Agent Response', 'E2E Latency', 'Inspect'].map(h => (
+                    {['Call ID', 'Agent Mode', 'Total Turns', 'Initial Speech Preview', 'Avg E2E Latency', 'Action'].map(h => (
                       <th key={h} style={{ position: 'sticky', top: 0, background: 'var(--bg-muted)', color: 'var(--text-muted)', textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid var(--border-light)', fontWeight: 600, fontSize: '11px' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {transcriptsLoading && (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}><i className="fa-solid fa-circle-notch fa-spin" style={{ marginRight: '6px' }}></i>Loading transcripts…</td></tr>
+                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}><i className="fa-solid fa-circle-notch fa-spin" style={{ marginRight: '6px' }}></i>Loading call transcripts…</td></tr>
                   )}
-                  {!transcriptsLoading && filteredTranscripts.length === 0 && (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}>No previous call transcripts recorded yet.</td></tr>
+                  {!transcriptsLoading && filteredSessions.length === 0 && (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}>No recorded call sessions found.</td></tr>
                   )}
-                  {filteredTranscripts.map((t, idx) => (
-                    <tr key={idx}>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', fontWeight: 600, color: 'var(--text-primary)' }}>{t.agent_label}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', color: 'var(--text-secondary)' }}>#{t.turn}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', color: 'var(--text-secondary)', fontStyle: 'italic', maxWidth: '280px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.user_text || '—'}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', color: 'var(--text-primary)', maxWidth: '340px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.agent_text || '—'}</td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
-                        <span style={{ padding: '2px 6px', borderRadius: '4px', background: (t.e2e_ms && t.e2e_ms < 1000) ? 'rgba(34,197,94,0.15)' : 'rgba(234,179,8,0.15)', color: (t.e2e_ms && t.e2e_ms < 1000) ? '#22c55e' : '#eab308', fontWeight: 600 }}>
-                          {t.e2e_ms ? `${Math.round(t.e2e_ms)} ms` : '—'}
+                  {filteredSessions.map((session, idx) => (
+                    <tr key={session.id || idx} style={{ cursor: 'pointer', transition: 'background 0.15s' }} onClick={() => setSelectedSession(session)}>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg-muted)', fontFamily: 'JetBrains Mono, monospace', color: 'var(--violet-glow)', fontWeight: 700 }}>
+                        <i className="fa-solid fa-phone" style={{ fontSize: '10px', marginRight: '6px' }} />
+                        Call #{filteredSessions.length - idx}
+                      </td>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg-muted)', fontWeight: 600, color: 'var(--text-primary)' }}>{session.agent_label}</td>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg-muted)' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', background: 'var(--bg-muted)', color: 'var(--text-primary)', fontWeight: 600, fontSize: '11px', border: '1px solid var(--border-light)' }}>
+                          {session.total_turns} turns
                         </span>
                       </td>
-                      <td style={{ padding: '8px 12px', borderBottom: '1px solid var(--bg-muted)' }}>
-                        <button type="button" onClick={() => setSelectedTranscript(t)} style={{ ...S.btnSecondary, padding: '4px 8px', fontSize: '11px' }}>
-                          <i className="fa-solid fa-message" /> View Chat
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg-muted)', color: 'var(--text-secondary)', fontStyle: 'italic', maxWidth: '320px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        "{session.preview}"
+                      </td>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+                        <span style={{ padding: '3px 8px', borderRadius: '4px', background: (session.avg_e2e_ms && session.avg_e2e_ms < 1000) ? 'rgba(34,197,94,0.15)' : 'rgba(234,179,8,0.15)', color: (session.avg_e2e_ms && session.avg_e2e_ms < 1000) ? '#22c55e' : '#eab308', fontWeight: 600 }}>
+                          {session.avg_e2e_ms ? `${session.avg_e2e_ms} ms` : '—'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 12px', borderBottom: '1px solid var(--bg-muted)' }}>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedSession(session); }} style={{ ...S.btnPrimary, padding: '4px 10px', fontSize: '11px' }}>
+                          <i className="fa-solid fa-expand" /> View Full Transcript
                         </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
-        )}
-
-        {/* ── 4. LIVE LOGS SUB-TAB ───────────────────────────────────────────────── */}
-        {currentTab === 'logs' && (
-          <div className="erp-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <h3 className="erp-card-title" style={{ marginBottom: 0 }}>
-                  <i className="fa-solid fa-terminal" style={{ color: 'var(--violet-glow)', marginRight: '6px' }}></i>
-                  Realtime Server & Agent Logs ({logs.length})
-                </h3>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  value={logFilter}
-                  onChange={e => setLogFilter(e.target.value)}
-                  placeholder="Filter log output..."
-                  style={{ ...S.input, width: '220px' }}
-                />
-                <button type="button" onClick={() => setAutoScrollLogs(!autoScrollLogs)} style={{ ...S.btnSecondary, background: autoScrollLogs ? 'var(--violet-glow)' : 'var(--bg-muted)', color: autoScrollLogs ? '#fff' : 'var(--text-primary)' }}>
-                  <i className={`fa-solid ${autoScrollLogs ? 'fa-lock' : 'fa-lock-open'}`} /> {autoScrollLogs ? 'Auto-scroll ON' : 'Auto-scroll OFF'}
-                </button>
-                <button type="button" onClick={() => navigator.clipboard.writeText(logs.join('\n'))} style={S.btnSecondary}>
-                  <i className="fa-solid fa-copy" /> Copy
-                </button>
-                <button type="button" onClick={() => setLogs([])} style={S.btnSecondary}>
-                  <i className="fa-solid fa-trash-can" /> Clear
-                </button>
-              </div>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', background: '#090d16', borderRadius: '8px', padding: '14px 16px', fontFamily: 'JetBrains Mono, monospace', fontSize: '11.5px', lineHeight: 1.6, border: '1px solid var(--border-light)' }}>
-              {logs.length === 0 && <div style={{ color: 'var(--text-muted)' }}>No live logs captured yet. Make a call to stream realtime activity.</div>}
-              {logs
-                .filter(line => !logFilter || line.toLowerCase().includes(logFilter.toLowerCase()))
-                .map((line, i) => {
-                  let color = '#94a3b8';
-                  if (line.includes('ERROR') || line.includes('Failed')) color = '#f87171';
-                  else if (line.includes('create_work_order') || line.includes('Success')) color = '#4ade80';
-                  else if (line.includes('STT') || line.includes('Agent')) color = '#a78bfa';
-                  return (
-                    <div key={i} style={{ color, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                      <span style={{ color: '#475569', marginRight: '10px', userSelect: 'none' }}>{String(i + 1).padStart(4, ' ')}</span>
-                      {line}
-                    </div>
-                  );
-                })}
-              <div ref={logsEndRef} />
             </div>
           </div>
         )}
@@ -626,11 +527,11 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
         />
       )}
 
-      {/* 5. TRANSCRIPT CHAT INSPECTOR MODAL */}
-      {selectedTranscript && (
-        <ModalTranscriptDetail
-          turn={selectedTranscript}
-          onClose={() => setSelectedTranscript(null)}
+      {/* 5. FULL CALL TRANSCRIPT EXPANDED MODAL WINDOW */}
+      {selectedSession && (
+        <ModalCallSessionTranscript
+          session={selectedSession}
+          onClose={() => setSelectedSession(null)}
         />
       )}
     </div>
@@ -862,33 +763,60 @@ const ModalCustomerDetail = ({ customer, onClose }) => (
   </div>
 );
 
-const ModalTranscriptDetail = ({ turn, onClose }) => (
+// ── EXPANDED FULL CALL TRANSCRIPT MODAL WINDOW ─────────────────────────────────
+const ModalCallSessionTranscript = ({ session, onClose }) => (
   <div style={S.modalOverlay} onClick={onClose}>
-    <div style={S.modalCard} onClick={e => e.stopPropagation()}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>
-          <i className="fa-solid fa-message" style={{ color: 'var(--violet-glow)', marginRight: '6px' }} /> Turn #{turn.turn} ({turn.agent_label})
-        </h3>
-        <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '14px' }}><i className="fa-solid fa-xmark" /></button>
+    <div style={{ ...S.modalCard, maxWidth: '720px' }} onClick={e => e.stopPropagation()}>
+      
+      {/* HEADER */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <i className="fa-solid fa-phone-volume" style={{ color: 'var(--violet-glow)' }} />
+            Full Call Transcript ({session.agent_label})
+          </h3>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            {session.total_turns} total conversation turns • Avg Latency: {session.avg_e2e_ms} ms
+          </span>
+        </div>
+        <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }}><i className="fa-solid fa-xmark" /></button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-        {/* CALLER CHAT BUBBLE */}
-        <div style={{ alignSelf: 'flex-start', maxWidth: '85%', background: 'var(--bg-muted)', borderRadius: '12px 12px 12px 2px', padding: '10px 14px', border: '1px solid var(--border-light)' }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '4px' }}>CALLER / USER</div>
-          <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>{turn.user_text || '—'}</div>
-        </div>
+      {/* FULL CHAT CONVERSATION SCROLLABLE BODY */}
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', paddingRight: '4px', minHeight: '320px' }}>
+        {session.turns?.map((t, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px', background: 'var(--bg-muted)', borderRadius: '10px', border: '1px solid var(--border-light)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+              <span style={{ fontWeight: 700, color: 'var(--violet-glow)' }}>TURN #{t.turn}</span>
+              <span>E2E Latency: <b style={{ color: (t.e2e_ms && t.e2e_ms < 1000) ? '#22c55e' : '#eab308' }}>{t.e2e_ms ? `${Math.round(t.e2e_ms)} ms` : '—'}</b></span>
+            </div>
 
-        {/* AGENT CHAT BUBBLE */}
-        <div style={{ alignSelf: 'flex-end', maxWidth: '85%', background: 'rgba(167, 139, 250, 0.15)', borderRadius: '12px 12px 2px 12px', padding: '10px 14px', border: '1px solid rgba(167, 139, 250, 0.3)' }}>
-          <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--violet-glow)', marginBottom: '4px' }}>ZORA VOICE AGENT ({turn.agent_label})</div>
-          <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>{turn.agent_text || '—'}</div>
-        </div>
+            {/* CALLER / USER BUBBLE */}
+            {t.user_text && (
+              <div style={{ alignSelf: 'flex-start', width: '90%', background: 'var(--bg-card)', borderRadius: '10px 10px 10px 2px', padding: '8px 12px', border: '1px solid var(--border-light)' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: '#38bdf8', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <i className="fa-solid fa-user" /> Caller / User
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.5 }}>{t.user_text}</div>
+              </div>
+            )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-muted)', padding: '8px 12px', borderRadius: '6px', fontSize: '11px', marginTop: '6px' }}>
-          <div><span style={{ color: 'var(--text-muted)' }}>E2E Latency:</span> <b style={{ color: 'var(--violet-glow)' }}>{turn.e2e_ms ? `${Math.round(turn.e2e_ms)} ms` : '—'}</b></div>
-          <div><span style={{ color: 'var(--text-muted)' }}>Mode:</span> <b style={{ color: 'var(--text-primary)' }}>{turn.agent_label}</b></div>
-        </div>
+            {/* ZORA AGENT BUBBLE */}
+            {t.agent_text && (
+              <div style={{ alignSelf: 'flex-end', width: '90%', background: 'rgba(167, 139, 250, 0.15)', borderRadius: '10px 10px 2px 10px', padding: '8px 12px', border: '1px solid rgba(167, 139, 250, 0.3)' }}>
+                <div style={{ fontSize: '10px', fontWeight: 700, color: 'var(--violet-glow)', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <i className="fa-solid fa-robot" /> Zora AI Agent
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.5 }}>{t.agent_text}</div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* FOOTER */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-light)', paddingTop: '12px' }}>
+        <button type="button" onClick={onClose} style={S.btnPrimary}>Close Transcript Window</button>
       </div>
     </div>
   </div>

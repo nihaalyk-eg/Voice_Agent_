@@ -28,7 +28,7 @@ export const Sidebar = () => {
           <span>Voice Agent</span>
         </a>
 
-        <a href="/admin" onClick={go('/admin')} className={`sidebar-link ${isActive('admin', 'customers', 'customer-db', 'work-orders', 'transcripts', 'logs') ? 'active' : ''}`}>
+        <a href="/admin" onClick={go('/admin')} className={`sidebar-link ${isActive('admin', 'customers', 'customer-db', 'work-orders', 'transcripts') ? 'active' : ''}`}>
           <i className="fa-solid fa-user-shield"></i>
           <span>Admin</span>
         </a>
