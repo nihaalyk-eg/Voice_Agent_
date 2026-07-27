@@ -15,8 +15,8 @@ that's the only agent with tool-calling before this module existed.
 
 import json
 
-import cdb_tools
-from languages import resolve_language
+from app.tools import cdb_tools
+from app.languages import resolve_language
 from app.tools.guardrails import guardrail_filter
 
 MAX_STEPS = 15

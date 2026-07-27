@@ -25,10 +25,24 @@ export const AuthWrapper = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL;
+    const keycloakRealm = import.meta.env.VITE_KEYCLOAK_REALM;
+    const keycloakClientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
+
+    // Bypass auth for local dev if Keycloak is not configured
+    if (!keycloakClientId || keycloakClientId === 'your-frontend-client-id') {
+      const mockUser = { name: 'Local Dev User', initials: 'LD', role: 'Zora Agent', email: 'dev@local' };
+      setUser(mockUser);
+      setToken('mock-token');
+      setAuthenticated(true);
+      setLoading(false);
+      return;
+    }
+
     const keycloak = new Keycloak({
-      url: import.meta.env.VITE_KEYCLOAK_URL,
-      realm: import.meta.env.VITE_KEYCLOAK_REALM,
-      clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID
+      url: keycloakUrl,
+      realm: keycloakRealm,
+      clientId: keycloakClientId
     });
 
     keycloak.onAuthSuccess = () => {
@@ -126,7 +140,15 @@ export const AuthWrapper = ({ children }) => {
   }, []);
 
   const authFetch = async (url, options = {}) => {
-    if (!kcRef.current && initPromiseRef.current) await initPromiseRef.current;
+    if (!kcRef.current) {
+      // Mock fetch for bypassed auth
+      return fetch(url, {
+        ...options,
+        headers: { ...options.headers, 'Authorization': `Bearer mock-token` }
+      });
+    }
+    
+    if (initPromiseRef.current) await initPromiseRef.current;
     const currentKc = kcRef.current;
     if (!currentKc) throw new Error('Keycloak not initialized');
     await currentKc.updateToken(30);

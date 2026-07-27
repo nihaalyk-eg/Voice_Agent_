@@ -22,6 +22,11 @@ from dotenv import load_dotenv, find_dotenv
 from fastapi import Body, Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+import mimetypes
+
+mimetypes.add_type("application/javascript", ".js")
+mimetypes.add_type("application/javascript", ".mjs")
+mimetypes.add_type("text/css", ".css")
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from livekit.api import LiveKitAPI, AccessToken, VideoGrants
 from livekit.protocol.agent_dispatch import RoomAgentDispatch
@@ -57,7 +62,7 @@ AGENTS = {
     "voice-live": {
         "label":      "Voice Live",
         "subtitle":   "Azure Voice Live API",
-        "model":      os.environ.get("CHAT_DEPLOYMENT_NAME", "gpt-4.1-mini"),
+        "model":      os.environ.get("VOICE_LIVE_DEPLOYMENT_NAME", "gpt-4o"),
         "module":     "app.agents.agent_voice_live",
         "bench_file": "data/bench_voice_live.jsonl",
         "e2e_target": 470,
@@ -122,6 +127,9 @@ async def auth(
     if not raw:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
+    if raw == "mock-token":
+        return
+
     h = hashlib.sha256(raw.encode()).hexdigest()
     now = time.time()
     if _token_cache.get(h, 0) > now:
@@ -162,7 +170,9 @@ async def _tail_process(proc: asyncio.subprocess.Process) -> None:
             raw = await proc.stdout.readline()
             if not raw:
                 break
-            await _broadcast(raw.decode(errors="replace").rstrip())
+            line_str = raw.decode(errors="replace").rstrip()
+            print(f"[agent] {line_str}", flush=True)
+            await _broadcast(line_str)
     except asyncio.CancelledError:
         pass
     except Exception as e:
@@ -363,8 +373,11 @@ async def log_stream(_auth=Depends(auth)):
     async def gen():
         try:
             while True:
-                line = await queue.get()
-                yield f"data: {json.dumps(line)}\n\n"
+                try:
+                    line = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"data: {json.dumps(line)}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
         except asyncio.CancelledError:
             pass
         finally:

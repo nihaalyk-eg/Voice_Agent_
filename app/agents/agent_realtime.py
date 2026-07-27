@@ -65,7 +65,7 @@ _FORM_MODE = bool(_agent_config and _agent_config.get("required_fields"))
 
 # Available in every mode, not just CDB — any caller might ask to switch
 # languages regardless of what the call is about.
-_INSTRUCTIONS += (
+INSTRUCTIONS += (
     "\n\nIf the caller asks to continue in a different language, call "
     "switch_language(language) with the language they asked for (a name like "
     "'Spanish' or a locale code like 'es-ES'). This actually changes what you "
@@ -184,7 +184,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     # ── CDB / Form mode: resolve caller identity + language before opening the session ──
     cdb_state = realtime_tools.CdbState()
-    instructions, voice, language = _INSTRUCTIONS, _VOICE, _LANGUAGE
+    instructions, voice, language = INSTRUCTIONS, _VOICE, _LANGUAGE
 
     if _CDB_MODE:
         matched_customer = None
@@ -196,18 +196,18 @@ async def entrypoint(ctx: JobContext) -> None:
         cdb_state.matched_customer = matched_customer
         if matched_customer:
             print(f"[customer] {json.dumps({'status': 'match', 'customer': matched_customer, 'via': 'caller_id'})}")
-        instructions, resolved_locale, resolved_voice = realtime_tools.build_cdb_instructions(
-            _INSTRUCTIONS, matched_customer,
+        instructions, loc, vc = realtime_tools.build_cdb_instructions(
+            INSTRUCTIONS, matched_customer,
         )
-        if resolved_locale:
-            language, voice = resolved_locale, resolved_voice
+        if loc: language = loc
+        if vc:  voice = vc
     elif _FORM_MODE:
-        instructions = realtime_tools.build_form_instructions(_INSTRUCTIONS, _agent_config)
+        instructions = realtime_tools.build_form_instructions(INSTRUCTIONS, _agent_config)
 
     done = asyncio.Event()
     ctx.room.on("disconnected", lambda *_: done.set())
 
-    headers = {"api-key": os.environ["AZURE_SPEECH_KEY"]}
+    headers = {"api-key": os.environ.get("AZURE_OPENAI_API_KEY") or os.environ.get("AZURE_SPEECH_KEY", "")}
     print(f"[realtime] connecting ({_MODEL})...")
 
     async with websockets.connect(VOICE_LIVE_URL, additional_headers=headers) as ws:

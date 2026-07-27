@@ -4,10 +4,10 @@ function transcriptReducer(state, action) {
   switch (action.type) {
     case 'UPSERT': {
       const { id, text, final: isFinal, isAgent } = action;
-      const idx = state.findIndex(s => s.id === id);
+      const idx = state.findIndex(s => s.id === id || (s.text === text && s.isAgent === isAgent));
       if (idx === -1) return [...state, { id, text, final: isFinal, isAgent }];
       const next = [...state];
-      next[idx] = { ...next[idx], text, final: isFinal };
+      next[idx] = { ...next[idx], id, text, final: isFinal };
       return next;
     }
     case 'CLEAR':

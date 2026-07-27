@@ -68,9 +68,17 @@ export function useLiveKitAgent(authFetch, token) {
     }
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 64;
-      ctx.createMediaStreamSource(stream).connect(analyser);
+      const mediaSource = ctx.createMediaStreamSource(stream);
+      mediaSource.connect(analyser);
+      const silentGain = ctx.createGain();
+      silentGain.gain.value = 0;
+      mediaSource.connect(silentGain);
+      silentGain.connect(ctx.destination);
       audioCtxRef.current = ctx;
       analyserRef.current = analyser;
 
@@ -79,19 +87,26 @@ export function useLiveKitAgent(authFetch, token) {
 
       const draw = () => {
         animationIdRef.current = requestAnimationFrame(draw);
-        const { w, h } = canvasSizeRef.current;
-        if (!w || !h) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const w = canvas.clientWidth || canvas.width || 300;
+        const h = canvas.clientHeight || canvas.height || 70;
+        if (canvas.width !== w) canvas.width = w;
+        if (canvas.height !== h) canvas.height = h;
+
         const gCtx = canvas.getContext('2d');
-        const bufLen = analyserRef.current.frequencyBinCount;
+        const bufLen = analyserRef.current ? analyserRef.current.frequencyBinCount : 0;
+        if (!bufLen) return;
         const data = new Uint8Array(bufLen);
         analyserRef.current.getByteFrequencyData(data);
         gCtx.clearRect(0, 0, w, h);
         const barW = w / bufLen;
-        const barColor = getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() || '#09090b';
+        const barColor = getComputedStyle(document.documentElement).getPropertyValue('--violet-glow').trim() || '#8b5cf6';
         gCtx.fillStyle = barColor;
         for (let i = 0; i < bufLen; i++) {
-          const barH = (data[i] / 255) * h * 0.8;
-          gCtx.fillRect(i * barW, (h - barH) / 2, Math.max(1, barW - 2), barH);
+          const barH = (data[i] / 255) * h * 0.85;
+          gCtx.fillRect(i * barW, (h - barH) / 2, Math.max(1, barW - 2), Math.max(3, barH));
         }
       };
       draw();

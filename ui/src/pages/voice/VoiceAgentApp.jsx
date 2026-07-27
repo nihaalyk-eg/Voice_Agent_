@@ -169,6 +169,17 @@ export const VoiceAgentApp = () => {
       .catch(e => console.error('Agent load error:', e));
   }, [authFetch, loadBench, setAgents, setSelectedId, roomRef, connectingRef]);
 
+  useEffect(() => {
+    if (!selectedId) return;
+    loadBench(selectedId);
+    const timer = setInterval(() => {
+      if (selectedIdRef.current) {
+        loadBench(selectedIdRef.current);
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [selectedId, loadBench]);
+
   const joinRoom = useCallback(async (myGen) => {
     if (roomRef.current) return;
     try {
@@ -186,13 +197,19 @@ export const VoiceAgentApp = () => {
 
       room.on(RoomEvent.TrackSubscribed, (track) => {
         if (track.kind === Track.Kind.Audio) {
-          track.attach();
+          const audioEl = track.attach();
+          document.body.appendChild(audioEl);
+          audioEl.play().catch(err => console.log('Audio playback error:', err));
+          if (track.mediaStreamTrack) {
+            startVisualizer(new MediaStream([track.mediaStreamTrack]));
+          }
           setMicLabel('Agent speaking');
         }
       });
 
       room.on(RoomEvent.TrackUnsubscribed, (track) => {
-        track.detach();
+        const els = track.detach();
+        els.forEach(el => el.remove());
         if (roomRef.current) setMicLabel('Speak now');
       });
 
@@ -206,7 +223,7 @@ export const VoiceAgentApp = () => {
       });
 
       room.on(RoomEvent.TranscriptionReceived, (segs, participant) => {
-        const isAgent = participant?.identity?.startsWith('agent') ?? false;
+        const isAgent = participant ? participant.identity !== room.localParticipant?.identity : false;
         segs.forEach(seg => {
           const text = seg.text.trim();
           if (!text) return;
@@ -223,6 +240,7 @@ export const VoiceAgentApp = () => {
       });
 
       await room.connect(lkUrl, lkToken, { autoSubscribe: true });
+      try { await room.startAudio(); } catch {}
       if (!roomRef.current) { try { room.disconnect(); } catch {} return; }
       await room.localParticipant.setMicrophoneEnabled(true, { deviceId: selectedMic });
       if (!roomRef.current) { try { room.disconnect(); } catch {} return; }
@@ -447,11 +465,13 @@ export const VoiceAgentApp = () => {
                   {Object.keys(agents).length === 0 && <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '12px' }}><i className="fa-solid fa-circle-notch fa-spin" style={{ marginRight: '6px' }}></i>Loading agents…</div>}
                   {Object.entries(agents).map(([id, agent]) => {
                     const isSelected = id === selectedId;
+                    const validTurns = isSelected ? benchTurns.filter(t => t.e2e_ms != null) : [];
+                    const avgE2e = validTurns.length > 0 ? Math.round(validTurns.reduce((a, b) => a + b.e2e_ms, 0) / validTurns.length) : null;
                     return (
                       <button key={id} type="button" onClick={() => handleAgentSelect(id)} style={{ textAlign: 'left', padding: '12px', borderRadius: '10px', cursor: 'pointer', border: isSelected ? `1px solid ${agent.color || 'var(--violet-glow)'}` : '1px solid var(--border-light)', background: isSelected ? 'var(--bg-muted)' : 'var(--bg-card)', boxShadow: isSelected ? `0 0 0 2px ${agent.color || 'var(--violet-glow)'}22` : 'none', transition: 'all 0.15s', fontFamily: 'inherit' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}><span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: agent.color || 'var(--violet-glow)', display: 'inline-block', flexShrink: 0 }} />{agent.label}</span></div>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginBottom: '6px' }}>{agent.subtitle}</div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: '10.5px', fontFamily: 'JetBrains Mono, monospace', background: 'var(--bg-muted)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>{agent.model}</span><span style={{ fontSize: '11.5px', fontWeight: 500, color: agent.color || 'var(--violet-glow)' }}>{agent.e2e_target} ms</span></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: '10.5px', fontFamily: 'JetBrains Mono, monospace', background: 'var(--bg-muted)', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-muted)' }}>{agent.model}</span><span style={{ fontSize: '11.5px', fontWeight: 500, color: agent.color || 'var(--violet-glow)' }}>{avgE2e !== null ? `${avgE2e} ms (Live)` : `${agent.e2e_target} ms (Target)`}</span></div>
                       </button>
                     );
                   })}

@@ -8,6 +8,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())
 
 from livekit.agents import AgentSession, Agent, JobContext, WorkerOptions, cli, inference, llm
+from livekit import rtc
 from livekit.plugins import azure
 from livekit.plugins import openai as lk_openai
 from app.langfuse_setup import setup_langfuse
@@ -425,6 +426,7 @@ async def entrypoint(ctx: JobContext) -> None:
         if getattr(item, "type", None) != "message":
             return
         metrics = item.metrics or {}
+        text = (item.text_content or "").strip()
 
         if item.role == "user":
             turn_state["n"] += 1
@@ -432,21 +434,63 @@ async def entrypoint(ctx: JobContext) -> None:
             transcript_delay = metrics.get("transcription_delay")
             turn_state["pending"] = Turn(
                 turn=turn_state["n"],
-                user_text=item.text_content or "",
+                user_text=text,
                 speech_stopped_ms=stopped_at * 1000 if stopped_at else None,
                 stt_ms=transcript_delay * 1000 if transcript_delay is not None else None,
             )
-        elif item.role == "assistant" and turn_state["pending"] is not None:
-            t = turn_state["pending"]
-            e2e = metrics.get("e2e_latency")
-            t.agent_text = item.text_content or ""
-            t.e2e_ms = e2e * 1000 if e2e is not None else None
-            t.response_done_ms = item.created_at * 1000
-            if t.speech_stopped_ms and t.e2e_ms:
-                t.first_audio_ms = t.speech_stopped_ms + t.e2e_ms
-            _save_turn(t)
-            print(f"Turn #{t.turn} — e2e {t.e2e_ms and round(t.e2e_ms)} ms, stt {t.stt_ms and round(t.stt_ms)} ms")
-            turn_state["pending"] = None
+            if text:
+                remote_participant = next(iter(ctx.room.remote_participants.values()), None)
+                user_identity = remote_participant.identity if remote_participant else "browser-user"
+                asyncio.create_task(
+                    ctx.room.local_participant.publish_transcription(
+                        rtc.Transcription(
+                            participant_identity=user_identity,
+                            track_sid="",
+                            segments=[
+                                rtc.TranscriptionSegment(
+                                    id=f"user-{turn_state['n']}",
+                                    text=text,
+                                    start_time=0,
+                                    end_time=0,
+                                    language=initial_language,
+                                    final=True,
+                                )
+                            ],
+                        )
+                    )
+                )
+        elif item.role == "assistant":
+            if turn_state["pending"] is not None:
+                t = turn_state["pending"]
+                e2e = metrics.get("e2e_latency")
+                t.agent_text = text
+                t.e2e_ms = e2e * 1000 if e2e is not None else None
+                t.response_done_ms = getattr(item, "created_at", 0) * 1000
+                if t.speech_stopped_ms and t.e2e_ms:
+                    t.first_audio_ms = t.speech_stopped_ms + t.e2e_ms
+                _save_turn(t)
+                print(f"Turn #{t.turn} — e2e {t.e2e_ms and round(t.e2e_ms)} ms, stt {t.stt_ms and round(t.stt_ms)} ms")
+                turn_state["pending"] = None
+            if text:
+                item_id = getattr(item, "id", None) or f"agent-{turn_state['n']}"
+                asyncio.create_task(
+                    ctx.room.local_participant.publish_transcription(
+                        rtc.Transcription(
+                            participant_identity=ctx.room.local_participant.identity,
+                            track_sid="",
+                            segments=[
+                                rtc.TranscriptionSegment(
+                                    id=str(item_id),
+                                    text=text,
+                                    start_time=0,
+                                    end_time=0,
+                                    language=initial_language,
+                                    final=True,
+                                )
+                            ],
+                        )
+                    )
+                )
 
     session.on("conversation_item_added", _on_item_added)
 
