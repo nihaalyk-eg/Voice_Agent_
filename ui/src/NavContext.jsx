@@ -5,7 +5,12 @@ const NavContext = createContext(null);
 export const useNav = () => useContext(NavContext);
 
 const getPage = () => {
-  return window.location.pathname.startsWith('/customer-db') ? 'customer-db' : 'voice';
+  const path = window.location.pathname;
+  if (path.startsWith('/work-orders')) return 'work-orders';
+  if (path.startsWith('/transcripts')) return 'transcripts';
+  if (path.startsWith('/logs')) return 'logs';
+  if (path.startsWith('/customer-db') || path.startsWith('/customers')) return 'customers';
+  return 'voice';
 };
 
 export const NavProvider = ({ children }) => {

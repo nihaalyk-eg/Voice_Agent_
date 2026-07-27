@@ -8,7 +8,10 @@ import '../../index.css';
 
 const Router = () => {
   const { page } = useNav();
-  return page === 'customer-db' ? <CustomerDBApp /> : <VoiceAgentApp />;
+  if (['customers', 'customer-db', 'work-orders', 'transcripts', 'logs'].includes(page)) {
+    return <CustomerDBApp activeTab={page} />;
+  }
+  return <VoiceAgentApp />;
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(

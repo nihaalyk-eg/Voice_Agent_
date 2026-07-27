@@ -27,9 +27,29 @@ export const Sidebar = () => {
           <i className="fa-solid fa-microphone-lines"></i>
           <span>Voice Agent</span>
         </a>
-        <a href="/customer-db" onClick={go('/customer-db')} className={`sidebar-link ${isActive('customer-db') ? 'active' : ''}`}>
-          <i className="fa-solid fa-database"></i>
-          <span>Customer DB</span>
+
+        <div style={{ padding: '12px 14px 4px 14px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+          Admin
+        </div>
+
+        <a href="/customers" onClick={go('/customers')} className={`sidebar-link ${isActive('customers', 'customer-db') ? 'active' : ''}`}>
+          <i className="fa-solid fa-address-book"></i>
+          <span>Customers</span>
+        </a>
+
+        <a href="/work-orders" onClick={go('/work-orders')} className={`sidebar-link ${isActive('work-orders') ? 'active' : ''}`}>
+          <i className="fa-solid fa-clipboard-list"></i>
+          <span>Work Orders</span>
+        </a>
+
+        <a href="/transcripts" onClick={go('/transcripts')} className={`sidebar-link ${isActive('transcripts') ? 'active' : ''}`}>
+          <i className="fa-solid fa-comments"></i>
+          <span>Call Transcripts</span>
+        </a>
+
+        <a href="/logs" onClick={go('/logs')} className={`sidebar-link ${isActive('logs') ? 'active' : ''}`}>
+          <i className="fa-solid fa-terminal"></i>
+          <span>Live Logs</span>
         </a>
       </nav>
 
