@@ -374,6 +374,105 @@ async def list_work_orders(_auth=Depends(auth)):
     return {"work_orders": rows}
 
 
+@app.post("/customers")
+async def create_customer(data: dict = Body(...), _auth=Depends(auth)):
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        return JSONResponse({"error": "DATABASE_URL not configured"}, status_code=503)
+
+    cid = f"cust_{uuid.uuid4().hex[:8]}"
+    def _insert():
+        with psycopg.connect(database_url, connect_timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO customers (id, full_name, phone_number, email, property_address, apartment_number, language_preference, notes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        cid,
+                        data.get("full_name", "Unknown"),
+                        data.get("phone_number", ""),
+                        data.get("email", ""),
+                        data.get("property_address", ""),
+                        data.get("apartment_number", ""),
+                        data.get("language_preference", "Finnish"),
+                        data.get("notes", ""),
+                    ),
+                )
+        return {"id": cid, **data}
+
+    try:
+        res = await asyncio.to_thread(_insert)
+        return {"customer": res}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/work-orders")
+async def create_work_order_admin(data: dict = Body(...), _auth=Depends(auth)):
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        return JSONResponse({"error": "DATABASE_URL not configured"}, status_code=503)
+
+    wo_id = f"WO-{uuid.uuid4().hex[:6].upper()}"
+    def _insert():
+        with psycopg.connect(database_url, connect_timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO work_orders (
+                        id, property_address, apartment_number, is_common_area, issue_description,
+                        permit_master_key, special_notes, caller_phone_number, urgency_level,
+                        status, scheduled_time, source, call_category
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                    """,
+                    (
+                        wo_id,
+                        data.get("property_address", ""),
+                        data.get("apartment_number", ""),
+                        data.get("is_common_area", False),
+                        data.get("issue_description", ""),
+                        data.get("permit_master_key", False),
+                        data.get("special_notes", ""),
+                        data.get("caller_phone_number", ""),
+                        data.get("urgency_level", "Standard"),
+                        data.get("status", "Assigned"),
+                        data.get("scheduled_time", "Within 24 Hours"),
+                        data.get("source", "admin"),
+                        data.get("call_category", "maintenance"),
+                    ),
+                )
+        return {"id": wo_id, **data}
+
+    try:
+        res = await asyncio.to_thread(_insert)
+        return {"work_order": res}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/work-orders/{wo_id}/status")
+async def update_work_order_status(wo_id: str, data: dict = Body(...), _auth=Depends(auth)):
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        return JSONResponse({"error": "DATABASE_URL not configured"}, status_code=503)
+
+    new_status = data.get("status", "Assigned")
+    def _update():
+        with psycopg.connect(database_url, connect_timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE work_orders SET status = %s WHERE id = %s", (new_status, wo_id))
+
+    try:
+        await asyncio.to_thread(_update)
+        return {"status": "updated", "id": wo_id, "new_status": new_status}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
 @app.get("/transcripts")
 async def list_transcripts(_auth=Depends(auth)):
     all_turns = []
