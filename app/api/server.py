@@ -338,6 +338,64 @@ async def list_customers(search: str = Query(default=""), _auth=Depends(auth)):
     return {"customers": rows}
 
 
+@app.get("/work-orders")
+async def list_work_orders(_auth=Depends(auth)):
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        return JSONResponse({"error": "DATABASE_URL not configured"}, status_code=503)
+
+    def _query():
+        with psycopg.connect(database_url, connect_timeout=5) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, property_address, apartment_number, is_common_area,
+                           issue_description, permit_master_key, special_notes,
+                           caller_phone_number, urgency_level, status, scheduled_time,
+                           source, call_category, created_at
+                    FROM work_orders
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                    """
+                )
+                cols = [d.name for d in cur.description]
+                rows = []
+                for r in cur.fetchall():
+                    d = dict(zip(cols, r))
+                    if d.get("created_at"):
+                        d["created_at"] = str(d["created_at"])
+                    rows.append(d)
+                return rows
+
+    try:
+        rows = await asyncio.to_thread(_query)
+    except psycopg.OperationalError as e:
+        return JSONResponse({"error": f"database unavailable: {e}"}, status_code=503)
+    return {"work_orders": rows}
+
+
+@app.get("/transcripts")
+async def list_transcripts(_auth=Depends(auth)):
+    all_turns = []
+    for agent_id, agent in AGENTS.items():
+        bench = agent.get("bench_file")
+        if not bench:
+            continue
+        path = BASE_DIR / bench
+        if not path.exists():
+            continue
+        try:
+            text = await asyncio.to_thread(path.read_text)
+            turns = [json.loads(l) for l in text.splitlines() if l.strip()]
+            for t in turns:
+                t["agent_id"] = agent_id
+                t["agent_label"] = agent["label"]
+                all_turns.append(t)
+        except Exception:
+            pass
+    return {"transcripts": all_turns}
+
+
 @app.get("/bench/{agent_id}")
 async def bench_results(agent_id: str, _auth=Depends(auth)):
     if agent_id not in AGENTS:

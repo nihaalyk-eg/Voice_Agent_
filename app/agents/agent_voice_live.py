@@ -258,6 +258,7 @@ async def entrypoint(ctx: JobContext) -> None:
         # ── Task 2: Voice Live → speaker + bench ─────────────────────────────
         async def recv_audio() -> None:
             nonlocal turn_n, current
+            agent_text_buf = ""
             try:
                 async for raw in ws:
                     msg = json.loads(raw)
@@ -271,6 +272,7 @@ async def entrypoint(ctx: JobContext) -> None:
                             await ws.send(json.dumps({"type": "response.create"}))
                     elif t == "input_audio_buffer.speech_started":
                         print("[voice-live] ↑ user speaking")
+                        agent_text_buf = ""
                     elif t == "input_audio_buffer.speech_stopped":
                         turn_n += 1
                         current = Turn(turn=turn_n, speech_stopped_ms=_ms())
@@ -312,8 +314,24 @@ async def entrypoint(ctx: JobContext) -> None:
                                 "item": {"type": "function_call_output", "call_id": call_id, "output": result},
                             }))
                             await ws.send(json.dumps({"type": "response.create"}))
+                    elif t == "response.audio_transcript.delta":
+                        delta_text = msg.get("delta", "")
+                        if delta_text:
+                            agent_text_buf += delta_text
+                            try:
+                                await ctx.room.local_participant.publish_transcription(rtc.Transcription(
+                                    participant_identity=ctx.room.local_participant.identity,
+                                    track_sid=out_pub.sid,
+                                    segments=[rtc.TranscriptionSegment(
+                                        id=msg.get("item_id", "") or f"agent-{turn_n}",
+                                        text=agent_text_buf, start_time=0, end_time=0,
+                                        language=language, final=False,
+                                    )],
+                                ))
+                            except Exception as e:
+                                print(f"[voice-live] transcript publish error: {e}")
                     elif t == "response.audio_transcript.done":
-                        text = msg.get("transcript", "").strip()
+                        text = msg.get("transcript", "").strip() or agent_text_buf
                         print(f"[voice-live] agent: {text}")
                         if current:
                             current.agent_text = text
@@ -330,6 +348,7 @@ async def entrypoint(ctx: JobContext) -> None:
                                 ))
                             except Exception as e:
                                 print(f"[voice-live] transcript publish error: {e}")
+                        agent_text_buf = ""
                     elif t == "response.audio.delta":
                         delta = msg.get("delta", "")
                         if not delta:
