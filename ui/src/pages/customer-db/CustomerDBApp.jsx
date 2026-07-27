@@ -213,7 +213,12 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
                   <i className={`fa-solid ${tab.icon}`} style={{ fontSize: '11px', color: isSelected ? 'var(--violet-glow)' : 'inherit' }} />
                   {tab.label}
                   {tab.count !== undefined && (
-                    <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '10px', background: isSelected ? 'var(--violet-glow)' : 'var(--bg-muted)', color: '#fff', fontWeight: 600 }}>
+                    <span style={{
+                      fontSize: '10.5px', padding: '1px 7px', borderRadius: '10px',
+                      background: isSelected ? 'var(--violet-glow)' : 'rgba(148, 163, 184, 0.2)',
+                      color: isSelected ? '#fff' : 'var(--text-secondary)',
+                      fontWeight: 600, transition: 'all 0.15s'
+                    }}>
                       {tab.count}
                     </span>
                   )}
