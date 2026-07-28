@@ -205,6 +205,14 @@ async def _create_work_order(args: dict, state: CdbState) -> str:
         apartment_number = state.matched_customer.get("apartment_number") or apartment_number
         caller_phone_number = state.matched_customer.get("phone_number") or caller_phone_number
 
+    special_notes = args.get("special_notes", "")
+    if state.matched_customer and state.matched_customer.get("notes"):
+        on_file_notes = f"On-file notes: {state.matched_customer['notes']}"
+        if special_notes and special_notes.lower() != "none":
+            special_notes = f"{on_file_notes}\nCaller added: {special_notes}"
+        else:
+            special_notes = on_file_notes
+
     try:
         result = await cdb_tools.create_work_order(
             property_address=property_address,
@@ -214,7 +222,7 @@ async def _create_work_order(args: dict, state: CdbState) -> str:
             urgency_level=args.get("urgency_level", "Standard"),
             is_common_area=bool(args.get("is_common_area", False)),
             permit_master_key=bool(args.get("permit_master_key", False)),
-            special_notes=args.get("special_notes", ""),
+            special_notes=special_notes,
             source="voice",
             call_category="fault_report",
         )

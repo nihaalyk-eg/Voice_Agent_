@@ -244,6 +244,13 @@ class VoiceAgent(Agent):
             property_address = self._matched_customer.get("property_address") or property_address
             apartment_number = self._matched_customer.get("apartment_number") or apartment_number
             caller_phone_number = self._matched_customer.get("phone_number") or caller_phone_number
+            
+            if self._matched_customer.get("notes"):
+                on_file_notes = f"On-file notes: {self._matched_customer['notes']}"
+                if special_notes and special_notes.lower() != "none":
+                    special_notes = f"{on_file_notes}\nCaller added: {special_notes}"
+                else:
+                    special_notes = on_file_notes
 
         try:
             result = await cdb_tools.create_work_order(
