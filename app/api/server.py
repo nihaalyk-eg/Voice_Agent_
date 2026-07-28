@@ -596,14 +596,28 @@ async def get_token(_auth=Depends(auth)):
 # ── Static UI serving ────────────────────────────────────────────────────
 public_dir = BASE_DIR / "public"
 
-# Client-side routes handled by the SPA's hand-rolled router (NavContext) —
-# served explicitly so a direct navigation/refresh on these paths doesn't 404.
 if public_dir.exists():
-    @app.get("/customer-db")
-    async def customer_db_page():
+    # Mount static assets at /voice/assets/ (matches nginx ^~ /voice/assets/ rule)
+    assets_dir = public_dir / "assets"
+    if assets_dir.exists():
+        app.mount("/voice/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    # SPA catch-all: serve index.html for /voice and all /voice/* client-side routes.
+    # nginx rewrites every /voice/* request to /voice before forwarding here,
+    # so this single route is sufficient.
+    @app.get("/voice")
+    @app.get("/voice/{path:path}")
+    async def spa_index(path: str = ""):
         return FileResponse(public_dir / "index.html")
 
-    app.mount("/", StaticFiles(directory=public_dir, html=True), name="ui")
+    # Legacy alias kept for backward compatibility
+    @app.get("/customer-db")
+    @app.get("/customers")
+    @app.get("/work-orders")
+    @app.get("/transcripts")
+    async def spa_admin():
+        return FileResponse(public_dir / "index.html")
+
 
 
 if __name__ == "__main__":

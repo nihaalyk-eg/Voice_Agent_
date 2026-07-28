@@ -15,7 +15,7 @@ export const Sidebar = () => {
 
   return (
     <aside className="sidebar-nav">
-      <a href="/" onClick={go('/')} className="sidebar-brand" style={{ textDecoration: 'none' }}>
+      <a href="/voice" onClick={go('/voice')} className="sidebar-brand" style={{ textDecoration: 'none' }}>
         <div className="logo-mark zora-logo">
           <i className="fa-solid fa-bolt"></i>
         </div>
@@ -23,12 +23,12 @@ export const Sidebar = () => {
       </a>
 
       <nav className="sidebar-links">
-        <a href="/" onClick={go('/')} className={`sidebar-link ${isActive('voice', '') ? 'active' : ''}`}>
+        <a href="/voice" onClick={go('/voice')} className={`sidebar-link ${isActive('voice', '') ? 'active' : ''}`}>
           <i className="fa-solid fa-microphone-lines"></i>
           <span>Voice Agent</span>
         </a>
 
-        <a href="/admin" onClick={go('/admin')} className={`sidebar-link ${isActive('admin', 'customers', 'customer-db', 'work-orders', 'transcripts') ? 'active' : ''}`}>
+        <a href="/voice/customers" onClick={go('/voice/customers')} className={`sidebar-link ${isActive('admin', 'customers', 'customer-db', 'work-orders', 'transcripts') ? 'active' : ''}`}>
           <i className="fa-solid fa-user-shield"></i>
           <span>Admin</span>
         </a>

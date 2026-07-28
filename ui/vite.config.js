@@ -5,7 +5,7 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   envDir: '../',
-  base: '/',
+  base: '/voice/',
   build: {
     outDir: '../public',
     emptyOutDir: true,

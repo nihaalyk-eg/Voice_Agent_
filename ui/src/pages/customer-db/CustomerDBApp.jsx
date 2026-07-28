@@ -59,6 +59,15 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
     ? (activeTab === 'customer-db' ? 'customers' : activeTab)
     : 'customers';
 
+  // Sync currentTab from URL as well (for direct navigation/refresh)
+  const urlTab = (() => {
+    const p = window.location.pathname;
+    if (p.includes('/voice/work-orders')) return 'work-orders';
+    if (p.includes('/voice/transcripts')) return 'transcripts';
+    return 'customers';
+  })();
+  const effectiveTab = urlTab !== 'customers' ? urlTab : currentTab;
+
   // ── FETCH CUSTOMERS ──────────────────────────────────────────────────────────
   const loadCustomers = useCallback(async (q = '') => {
     setCustomersLoading(true);
@@ -192,11 +201,11 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
           {/* SUB-TABS */}
           <div style={{ display: 'flex', background: 'var(--bg-muted)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-light)' }}>
             {[
-              { id: 'customers', label: 'Customers', icon: 'fa-address-book', path: '/customers', count: customers.length },
-              { id: 'work-orders', label: 'Work Orders', icon: 'fa-clipboard-list', path: '/work-orders', count: workOrders.length },
-              { id: 'transcripts', label: 'Call Transcripts', icon: 'fa-comments', path: '/transcripts', count: sessions.length },
+              { id: 'customers', label: 'Customers', icon: 'fa-address-book', path: '/voice/customers', count: customers.length },
+              { id: 'work-orders', label: 'Work Orders', icon: 'fa-clipboard-list', path: '/voice/work-orders', count: workOrders.length },
+              { id: 'transcripts', label: 'Call Transcripts', icon: 'fa-comments', path: '/voice/transcripts', count: sessions.length },
             ].map(tab => {
-              const isSelected = currentTab === tab.id;
+              const isSelected = effectiveTab === tab.id;
               return (
                 <button
                   key={tab.id}
@@ -229,7 +238,7 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
         </div>
 
         {/* ── 1. CUSTOMERS SUB-TAB ───────────────────────────────────────────────── */}
-        {currentTab === 'customers' && (
+        {effectiveTab === 'customers' && (
           <div className="erp-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '12px', flexWrap: 'wrap' }}>
               <h3 className="erp-card-title" style={{ marginBottom: 0 }}>
@@ -297,7 +306,7 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
         )}
 
         {/* ── 2. WORK ORDERS SUB-TAB ─────────────────────────────────────────────── */}
-        {currentTab === 'work-orders' && (
+        {effectiveTab === 'work-orders' && (
           <div className="erp-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -405,7 +414,7 @@ export const CustomerDBApp = ({ activeTab = 'customers' }) => {
         )}
 
         {/* ── 3. CALL TRANSCRIPTS PER CALL SUB-TAB ───────────────────────────────── */}
-        {currentTab === 'transcripts' && (
+        {effectiveTab === 'transcripts' && (
           <div className="erp-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* OVERALL CALL METRICS BAR */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>

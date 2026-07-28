@@ -6,11 +6,12 @@ export const useNav = () => useContext(NavContext);
 
 const getPage = () => {
   const path = window.location.pathname;
-  if (path.startsWith('/admin') || path.startsWith('/customer-db') || path.startsWith('/customers') || path.startsWith('/work-orders') || path.startsWith('/transcripts')) {
-    if (path.startsWith('/work-orders')) return 'work-orders';
-    if (path.startsWith('/transcripts')) return 'transcripts';
+  // All SPA routes are under /voice/
+  if (path.startsWith('/voice/customers') || path.startsWith('/voice/admin') || path.startsWith('/voice/customer-db')) {
     return 'customers';
   }
+  if (path.startsWith('/voice/work-orders')) return 'work-orders';
+  if (path.startsWith('/voice/transcripts')) return 'transcripts';
   return 'voice';
 };
 
