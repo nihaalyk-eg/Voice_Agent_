@@ -438,27 +438,6 @@ async def entrypoint(ctx: JobContext) -> None:
                 speech_stopped_ms=stopped_at * 1000 if stopped_at else None,
                 stt_ms=transcript_delay * 1000 if transcript_delay is not None else None,
             )
-            if text:
-                remote_participant = next(iter(ctx.room.remote_participants.values()), None)
-                user_identity = remote_participant.identity if remote_participant else "browser-user"
-                asyncio.create_task(
-                    ctx.room.local_participant.publish_transcription(
-                        rtc.Transcription(
-                            participant_identity=user_identity,
-                            track_sid="",
-                            segments=[
-                                rtc.TranscriptionSegment(
-                                    id=f"user-{turn_state['n']}",
-                                    text=text,
-                                    start_time=0,
-                                    end_time=0,
-                                    language=initial_language,
-                                    final=True,
-                                )
-                            ],
-                        )
-                    )
-                )
         elif item.role == "assistant":
             if turn_state["pending"] is not None:
                 t = turn_state["pending"]
@@ -471,26 +450,6 @@ async def entrypoint(ctx: JobContext) -> None:
                 _save_turn(t)
                 print(f"Turn #{t.turn} — e2e {t.e2e_ms and round(t.e2e_ms)} ms, stt {t.stt_ms and round(t.stt_ms)} ms")
                 turn_state["pending"] = None
-            if text:
-                item_id = getattr(item, "id", None) or f"agent-{turn_state['n']}"
-                asyncio.create_task(
-                    ctx.room.local_participant.publish_transcription(
-                        rtc.Transcription(
-                            participant_identity=ctx.room.local_participant.identity,
-                            track_sid="",
-                            segments=[
-                                rtc.TranscriptionSegment(
-                                    id=str(item_id),
-                                    text=text,
-                                    start_time=0,
-                                    end_time=0,
-                                    language=initial_language,
-                                    final=True,
-                                )
-                            ],
-                        )
-                    )
-                )
 
     session.on("conversation_item_added", _on_item_added)
 
