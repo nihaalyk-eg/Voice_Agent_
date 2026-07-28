@@ -17,6 +17,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '/voice-api': {
+        target: 'http://localhost:8080',
+        rewrite: (path) => path.replace(/^\/voice-api/, ''),
+      },
       '/agents': 'http://localhost:8080',
       '/agent': 'http://localhost:8080',
       '/bench': 'http://localhost:8080',

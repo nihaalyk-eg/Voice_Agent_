@@ -140,9 +140,13 @@ export const AuthWrapper = ({ children }) => {
   }, []);
 
   const authFetch = async (url, options = {}) => {
+    const targetUrl = (url.startsWith('/') && !url.startsWith('/voice-api') && !url.startsWith('/api'))
+      ? `/voice-api${url}`
+      : url;
+
     if (!kcRef.current) {
       // Mock fetch for bypassed auth
-      return fetch(url, {
+      return fetch(targetUrl, {
         ...options,
         headers: { ...options.headers, 'Authorization': `Bearer mock-token` }
       });
@@ -156,7 +160,7 @@ export const AuthWrapper = ({ children }) => {
     if (currentKc.refreshToken) sessionStorage.setItem('kc_refreshToken', currentKc.refreshToken);
     if (currentKc.idToken) sessionStorage.setItem('kc_idToken', currentKc.idToken);
     setToken(currentKc.token);
-    return fetch(url, {
+    return fetch(targetUrl, {
       ...options,
       headers: { ...options.headers, 'Authorization': `Bearer ${currentKc.token}` }
     });

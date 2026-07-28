@@ -101,7 +101,7 @@ export const VoiceAgentApp = () => {
     if (sseRef.current) sseRef.current.close();
     if (sseTimerRef.current) { clearTimeout(sseTimerRef.current); sseTimerRef.current = null; }
 
-    const es = new EventSource(`/stream?token=${encodeURIComponent(tok)}`);
+    const es = new EventSource(`/voice-api/stream?token=${encodeURIComponent(tok)}`);
     sseRef.current = es;
 
     es.onmessage = (e) => {
